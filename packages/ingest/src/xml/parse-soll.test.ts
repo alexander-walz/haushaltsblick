@@ -150,3 +150,32 @@ describe('Datenvertrag', () => {
     expect((fehler as Error).message).toMatch(meldung);
   });
 });
+
+describe('Ältere Jahrgänge', () => {
+  const huelle = (inhalt: string) =>
+    `<?xml version="1.0" encoding="UTF-8"?><haushalt jahr="2016"><einzelplan nr="01"><text>EP</text>` +
+    `<kapitel nr="0101"><text>K</text>${inhalt}</kapitel></einzelplan></haushalt>`;
+  const titel = (attrs: string) => `<titel ${attrs}><text>T</text><soll wert="1"/></titel>`;
+
+  it('setzt flexibilisiert auf null bei Einnahmetiteln ohne Attribut', async () => {
+    const zeilen = await sammle([huelle(`<einnahmen>${titel('nr="11101" fkt="011"')}</einnahmen>`)]);
+    expect(zeilen.find((z) => z.art === 'titel')).toMatchObject({ konto: 'einnahmen', flexibilisiert: null });
+  });
+
+  it('meldet fehlendes flexibilisiert an Ausgabetiteln als Vertragsfehler', async () => {
+    const fehler = await sammle([huelle(`<ausgaben>${titel('nr="68101" fkt="011"')}</ausgaben>`)]).catch((e: unknown) => e);
+    expect(fehler).toBeInstanceOf(XmlVertragsFehler);
+    expect((fehler as Error).message).toMatch(/flexibilisiert fehlt an Ausgabetitel 68101/);
+  });
+
+  it('liest seite="-" als null', async () => {
+    const zeilen = await sammle([huelle(`<ausgaben>${titel('nr="52501" flexibilisiert="ja" fkt="162" seite="-"')}</ausgaben>`)]);
+    expect(zeilen.find((z) => z.art === 'titel')).toMatchObject({ seite: null, flexibilisiert: true });
+  });
+
+  it('meldet nicht-numerische Seite weiterhin als Vertragsfehler', async () => {
+    const fehler = await sammle([huelle(`<ausgaben>${titel('nr="52501" flexibilisiert="ja" fkt="162" seite="x"')}</ausgaben>`)]).catch((e: unknown) => e);
+    expect(fehler).toBeInstanceOf(XmlVertragsFehler);
+    expect((fehler as Error).message).toMatch(/Seite ungültig/);
+  });
+});

@@ -18,15 +18,17 @@ erwartungen:
   - kapitel_nr: "^[0-9]{4}$ und beginnt mit der Einzelplannummer"
   - titel_nr: "^[0-9]{5}$"
   - fkt: "^[0-9]{3}$"
-  - flexibilisiert: [ja, nein]
+  - flexibilisiert: [ja, nein], fehlt bei Einnahmetiteln 2012 bis 2024 (dann null), Pflicht bei Ausgabetiteln
   - soll_wert: "^-?[0-9]+$"
-  - seite: "^[0-9]+$, optional"
+  - seite: "^[0-9]+$ oder \"-\" (keine Angabe, 2016 bis 2020), optional"
   - titel: liegt innerhalb von einnahmen oder ausgaben und hat genau ein soll
 besonderheiten:
   - anlage: Wirtschaftspläne von Sondervermögen, 2026 Kapitel 6092 (Klima- und Transformationsfonds) in Kapitel 6002. Nicht Teil des Gesamthaushalts, getrennt summieren.
   - mehrere Blöcke einnahmen oder ausgaben je Kapitel (erst mit Ausgabeart, dann flexibilisierte Titel ohne)
   - entfallene Kapitel ohne Titel, teils mit leerem Element (2026 Kapitel 0618 mit <ausgaben/>)
   - negative Soll-Werte bei globalen Minderausgaben (Gruppe 972)
+  - Einnahmetitel ohne flexibilisiert in 2012 bis 2024, Wert null (nicht anwendbar); an Ausgabetiteln bleibt das Attribut Pflicht
+  - seite="-" an wenigen Titeln 2016 bis 2020, bedeutet keine Seitenangabe, Wert null
 kontrollwerte_2026:
   haushalt_tsd_eur: 524540138 (Einnahmen gleich Ausgaben, entspricht dem Wurzelwert der internalapi)
   anlagen_tsd_eur: 34803623 (Einnahmen gleich Ausgaben)

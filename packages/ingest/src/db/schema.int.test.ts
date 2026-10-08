@@ -61,4 +61,17 @@ describe('Datenbankschema', () => {
           values (${lauf!.run_id}, 2026, '04', 'EP', '0411', 'K', 'sonstiges', 1, '97201', 'GMA', false, '880', 1, '/x', 'h')`),
       ).rejects.toThrow(/soll_titel_konto_check/);
     }));
+
+  it('nimmt flexibilisiert = null an (Einnahmetitel 2012 bis 2024)', () =>
+    imRollback(async (tx) => {
+      const [lauf] = await tx<{ run_id: string }[]>`
+        insert into ops.load_run (source_id, trigger, git_sha, pipeline_version)
+        values ('SRC_SOLL_XML', 'ci', 'test', '0') returning run_id`;
+      const [titel] = await tx`
+        insert into raw.soll_titel (run_id, jahr, einzelplan_nr, einzelplan_text, kapitel_nr, kapitel_text,
+          konto, konto_block, titel_nr, titel_text, flexibilisiert, fkt, soll_tsd_eur, xml_pfad, zeilen_hash)
+        values (${lauf!.run_id}, 2016, '01', 'EP', '0101', 'K', 'einnahmen', 1, '11101', 'T', null, '011', 1, '/x', 'h')
+        returning flexibilisiert`;
+      expect(titel).toEqual({ flexibilisiert: null });
+    }));
 });

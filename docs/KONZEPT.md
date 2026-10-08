@@ -114,6 +114,8 @@ Die Bezeichnungen der Seed-Tabellen sind vor dem Go-Live gegen die aktuell gült
 | Soll-Stände | Regierungsentwurf, beschlossenes Gesetz, Nachtragshaushalt | Spalte `haushaltsstand` je Datenstand, nie still überschreiben |
 | Ist erst nach Jahresabschluss | Ist 2026 frühestens 2027 | Laufendes Jahr nur Soll, Ist als „nicht verfügbar“ statt 0 |
 | Ressortzuschnitte ändern sich | Bezeichnungen und Kapitel wandern zwischen Jahren | Dimensionen je Jahr historisieren, Zeitreihen über Titelschlüssel und Bezeichnung erklären |
+| Fehlendes `flexibilisiert` | 2012 bis 2024 bei Einnahmetiteln | null = nicht anwendbar, bei Ausgabetiteln Vertragsfehler |
+| Seite ohne Angabe | `seite="-"` 2016 bis 2020 | seite = null |
 
 ## 4. Datenquellen und Datenverträge
 
@@ -162,15 +164,17 @@ erwartungen:
   - kapitel_nr: "^[0-9]{4}$ und beginnt mit der Einzelplannummer"
   - titel_nr: "^[0-9]{5}$"
   - fkt: "^[0-9]{3}$"
-  - flexibilisiert: [ja, nein]
+  - flexibilisiert: [ja, nein], fehlt bei Einnahmetiteln 2012 bis 2024 (dann null), Pflicht bei Ausgabetiteln
   - soll_wert: "^-?[0-9]+$"
-  - seite: "^[0-9]+$, optional"
+  - seite: "^[0-9]+$ oder \"-\" (keine Angabe, 2016 bis 2020), optional"
   - titel: liegt innerhalb von einnahmen oder ausgaben und hat genau ein soll
 besonderheiten:
   - anlage: Wirtschaftspläne von Sondervermögen, 2026 Kapitel 6092 (Klima- und Transformationsfonds) in Kapitel 6002. Nicht Teil des Gesamthaushalts, getrennt summieren.
   - mehrere Blöcke einnahmen oder ausgaben je Kapitel (erst mit Ausgabeart, dann flexibilisierte Titel ohne)
   - entfallene Kapitel ohne Titel, teils mit leerem Element (2026 Kapitel 0618 mit <ausgaben/>)
   - negative Soll-Werte bei globalen Minderausgaben (Gruppe 972)
+  - Einnahmetitel ohne flexibilisiert in 2012 bis 2024, Wert null (nicht anwendbar); an Ausgabetiteln bleibt das Attribut Pflicht
+  - seite="-" an wenigen Titeln 2016 bis 2020, bedeutet keine Seitenangabe, Wert null
 kontrollwerte_2026:
   haushalt_tsd_eur: 524540138 (Einnahmen gleich Ausgaben, entspricht dem Wurzelwert der internalapi)
   anlagen_tsd_eur: 34803623 (Einnahmen gleich Ausgaben)
@@ -447,7 +451,7 @@ create table raw.soll_titel (
   titel_nr          text not null,
   titel_text        text not null,
   titel_key         text generated always as (kapitel_nr || titel_nr) stored,
-  flexibilisiert    boolean not null,
+  flexibilisiert    boolean,
   fkt               text not null,
   seite             integer,
   soll_tsd_eur      numeric(18,0) not null,

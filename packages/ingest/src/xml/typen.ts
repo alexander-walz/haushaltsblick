@@ -17,7 +17,8 @@ export type SollTitel = {
   titelgruppeText: string | null;
   titelNr: string;
   titelText: string;
-  flexibilisiert: boolean;
+  /** null: nicht anwendbar (Einnahmetitel ohne Attribut, 2012 bis 2024) */
+  flexibilisiert: boolean | null;
   fkt: string;
   seite: number | null;
   sollTsdEur: number;

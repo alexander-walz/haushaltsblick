@@ -100,9 +100,9 @@ export async function* parseSollXml(quelle: Iterable<string> | AsyncIterable<str
       titelgruppeText: tg?.text ?? null,
       titelNr: r.attrs.nr!,
       titelText: r.text ?? '',
-      flexibilisiert: r.attrs.flexibilisiert === 'ja',
+      flexibilisiert: r.attrs.flexibilisiert === undefined ? null : r.attrs.flexibilisiert === 'ja',
       fkt: r.attrs.fkt!,
-      seite: r.attrs.seite === undefined ? null : Number(r.attrs.seite),
+      seite: r.attrs.seite === undefined || r.attrs.seite === '-' ? null : Number(r.attrs.seite),
       sollTsdEur: Number(soll),
       xmlPfad: `${pfad()}/${r.segment}`,
     };
@@ -158,8 +158,9 @@ export async function* parseSollXml(quelle: Iterable<string> | AsyncIterable<str
       case 'titel':
         pruefe(attrs.nr, /^\d{5}$/, 'Titelnummer');
         pruefe(attrs.fkt, /^\d{3}$/, 'Funktionskennziffer');
-        pruefe(attrs.flexibilisiert, /^(ja|nein)$/, 'flexibilisiert');
-        if (attrs.seite !== undefined) pruefe(attrs.seite, /^\d+$/, 'Seite');
+        if (attrs.flexibilisiert !== undefined) pruefe(attrs.flexibilisiert, /^(ja|nein)$/, 'flexibilisiert');
+        else if (finde('ausgaben')) verletze(`flexibilisiert fehlt an Ausgabetitel ${attrs.nr}`);
+        if (attrs.seite !== undefined) pruefe(attrs.seite, /^(\d+|-)$/, 'Seite');
         if (!finde('einnahmen') && !finde('ausgaben')) verletze('<titel> außerhalb von <einnahmen>/<ausgaben>');
         break;
       case 'soll':
