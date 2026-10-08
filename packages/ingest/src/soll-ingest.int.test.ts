@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { sha256Hex, sollXmlUrl, type AbrufErgebnis, type AbrufOptionen } from './abruf/soll-xml';
 import type { Sql } from './db/client';
+import { speichereSollZeilen } from './db/lade-soll';
 import { imRollback } from './db/test-hilfen';
 import { ladeSollJahr, type SollIngestOptionen } from './soll-ingest';
 import { FIXTURE_2026 } from './xml/test-hilfen';
@@ -63,6 +64,41 @@ describe('ladeSollJahr', () => {
       const zweiter = await ladeSollJahr(tx, 2026, optionen({ abruf }));
       expect(abruf.mock.calls[1]![1]).toMatchObject({ etag });
       expect(zweiter).toMatchObject({ status: 'skipped', hinweis: 'unverändert' });
+    }));
+
+  it('gibt den ETag eines Dateilaufs nicht an Netzabrufe weiter', () =>
+    imRollback(async (tx) => {
+      const lokal = await ladeSollJahr(tx, 2026, optionen({ lokaleDatei: einmaligeDatei() }));
+      expect(lokal).toMatchObject({ status: 'succeeded', lokal: true });
+      await tx`update raw.source_file set http_etag = '"aus-datei"' where run_id = ${lokal.runId}`;
+      const abruf = vi.fn(async (_jahr: number, _opt: AbrufOptionen): Promise<AbrufErgebnis> => neu(einmaligerInhalt()));
+      const netz = await ladeSollJahr(tx, 2026, optionen({ abruf }));
+      expect(netz).toMatchObject({ status: 'succeeded', lokal: false });
+      expect(abruf.mock.calls[0]![1].etag).not.toBe('"aus-datei"');
+    }));
+
+  it('markiert Speicherfehler als failed und hinterlässt nichts in raw', () =>
+    imRollback(async (tx) => {
+      const speichern: typeof speichereSollZeilen = async (sql, runId, zeilen) => {
+        await speichereSollZeilen(sql, runId, zeilen);
+        throw new Error('Speichern mitten im Lauf abgebrochen');
+      };
+      const e = await ladeSollJahr(tx, 2026, optionen({ lokaleDatei: einmaligeDatei(), speichern }));
+      expect(e).toMatchObject({ status: 'failed', hinweis: 'Speichern mitten im Lauf abgebrochen' });
+      expect(await laufStatus(tx, e.runId)).toMatchObject({ status: 'failed', error: 'Speichern mitten im Lauf abgebrochen' });
+      const [n] = await tx`
+        select (select count(*)::int from raw.soll_titel where run_id = ${e.runId}) as titel,
+               (select count(*)::int from raw.soll_kapitel where run_id = ${e.runId}) as kapitel,
+               (select count(*)::int from raw.source_file where run_id = ${e.runId}) as dateien`;
+      expect(n).toEqual({ titel: 0, kapitel: 0, dateien: 0 });
+    }));
+
+  it('stellt ein leeres Dokument unter Quarantäne', () =>
+    imRollback(async (tx) => {
+      const abruf = async (): Promise<AbrufErgebnis> => neu(`<haushalt jahr="2026"/><!-- ${randomUUID()} -->`);
+      const e = await ladeSollJahr(tx, 2026, optionen({ abruf }));
+      expect(e).toMatchObject({ status: 'quarantined' });
+      expect(e.hinweis).toMatch(/Datei enthält keine Kapitel und Titel/);
     }));
 
   it('überspringt nicht veröffentlichte Jahre', () =>

@@ -43,7 +43,7 @@ type Rahmen = {
   kinder: Map<string, number>;
   /** Inhalt des direkten <text>-Kinds. */
   text?: string;
-  /** Nur bei <titel>: unbeschnittene, verkettete <text>-Segmente. */
+  /** Nur bei <titel>: unbeschnittene, verkettete <text>-Segmente (nur direkt aufeinanderfolgend und vor <soll>). */
   textRoh?: string;
   /** Nur bei <titel>: Rohwert aus <soll wert>. */
   soll?: string;
@@ -65,6 +65,8 @@ export async function* parseSollXml(quelle: Iterable<string> | AsyncIterable<str
   const fertig: SollZeile[] = [];
   let jahr = 0;
   let textPuffer = '';
+  const gesehenKapitel = new Set<string>();
+  let anzahlZeilen = 0;
 
   const pfad = () => '/' + stack.map((r) => r.segment).join('/');
   const verletze = (meldung: string): never => {
@@ -155,6 +157,8 @@ export async function* parseSollXml(quelle: Iterable<string> | AsyncIterable<str
         const nr = pruefe(attrs.nr, /^\d{4}$/, 'Kapitelnummer');
         const ep = finde('einzelplan')?.attrs.nr ?? verletze('<kapitel> außerhalb von <einzelplan>');
         if (!nr.startsWith(ep)) verletze(`Kapitelnummer ungültig: ${nr} passt nicht zu Einzelplan ${ep}`);
+        if (gesehenKapitel.has(nr)) verletze(`Kapitel ${nr} mehrfach vorhanden`);
+        gesehenKapitel.add(nr);
         break;
       }
       case 'titel':
@@ -195,7 +199,8 @@ export async function* parseSollXml(quelle: Iterable<string> | AsyncIterable<str
       const eltern = stack.at(-1);
       if (eltern) {
         if (eltern.name === 'titel') {
-          // Tiefgestellte Zeichen (CO2) zerlegen den Titeltext in mehrere Segmente.
+          // Tiefgestellte Zeichen (CO2) zerlegen den Titeltext in mehrere Segmente, die direkt aufeinander folgen.
+          if (eltern.soll !== undefined) verletze('Mehr als ein <text> in titel');
           eltern.textRoh = (eltern.textRoh ?? '') + textPuffer;
           eltern.text = eltern.textRoh.trim();
         } else {
@@ -204,8 +209,10 @@ export async function* parseSollXml(quelle: Iterable<string> | AsyncIterable<str
         }
       }
     } else if (tag.name === 'titel') {
+      anzahlZeilen += 1;
       fertig.push(baueTitel(r));
     } else if (tag.name === 'kapitel') {
+      anzahlZeilen += 1;
       fertig.push(baueKapitel(r));
     }
   });
@@ -216,5 +223,6 @@ export async function* parseSollXml(quelle: Iterable<string> | AsyncIterable<str
   }
   parser.close();
   if (jahr === 0) throw new XmlVertragsFehler('Kein <haushalt>-Element gefunden', '/');
+  if (anzahlZeilen === 0) throw new XmlVertragsFehler('Datei enthält keine Kapitel und Titel', '/haushalt');
   yield* fertig.splice(0);
 }

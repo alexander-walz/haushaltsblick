@@ -17,7 +17,7 @@ export function formatiereBericht(ergebnisse: readonly JahresErgebnis[]): string
         z ? mrd(z.haushaltTsdEur.ausgaben) : '',
         z ? mrd(z.anlagenTsdEur.ausgaben) : '',
         z ? (z.ausgeglichen ? 'ja' : 'nein') : '',
-        e.hinweis ?? '',
+        [e.hinweis, e.lokal ? 'lokale Datei' : undefined].filter(Boolean).join('; '),
       ]),
     );
   }

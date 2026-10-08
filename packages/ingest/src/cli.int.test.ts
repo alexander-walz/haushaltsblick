@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { sollXmlUrl, type AbrufErgebnis } from './abruf/soll-xml';
 import { main } from './cli';
 import { imRollback } from './db/test-hilfen';
@@ -18,6 +18,10 @@ function einmaligeDatei(): string {
 }
 
 describe('CLI', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it('lädt eine lokale Datei, druckt den Bericht und endet mit 0', () =>
     imRollback(async (tx) => {
       const ausgaben: string[] = [];
@@ -25,12 +29,12 @@ describe('CLI', () => {
         sql: tx, heute: HEUTE, ablageVerzeichnis: ablage, log: (t) => ausgaben.push(t),
       });
       expect(code).toBe(0);
-      expect(ausgaben.join('\n')).toContain('| 2026 | succeeded | 8 | 0,0 | 6,5 | nein |  |');
+      expect(ausgaben.join('\n')).toContain('| 2026 | succeeded | 8 | 0,0 | 6,5 | nein | lokale Datei |');
     }));
 
   it('endet mit 0, wenn das Folgejahr noch nicht veröffentlicht ist', () =>
     imRollback(async (tx) => {
-      process.env.INGEST_USER_AGENT = 'Haushaltsblick-Test/0.1';
+      vi.stubEnv('INGEST_USER_AGENT', 'Haushaltsblick-Test/0.1');
       const abruf = async (): Promise<AbrufErgebnis> => ({ status: 'nicht_vorhanden', url: sollXmlUrl(2027) });
       const ausgaben: string[] = [];
       const code = await main(['--jahre', '2027'], { sql: tx, heute: HEUTE, ablageVerzeichnis: ablage, abruf, log: (t) => ausgaben.push(t) });
@@ -40,7 +44,7 @@ describe('CLI', () => {
 
   it('endet mit 1 bei Quarantäne', () =>
     imRollback(async (tx) => {
-      process.env.INGEST_USER_AGENT = 'Haushaltsblick-Test/0.1';
+      vi.stubEnv('INGEST_USER_AGENT', 'Haushaltsblick-Test/0.1');
       const abruf = async (): Promise<AbrufErgebnis> => {
         const inhalt = Buffer.from(`<haushalt jahr="2026"><verpflichtung/></haushalt><!-- ${randomUUID()} -->`);
         return { status: 'neu', url: sollXmlUrl(2026), inhalt, sha256: randomUUID().replaceAll('-', '').padEnd(64, '0'), etag: null, lastModified: null, abgerufenAm: new Date() };
@@ -56,7 +60,7 @@ describe('CLI', () => {
   });
 
   it('verlangt einen User-Agent für Abrufe aus dem Netz', async () => {
-    delete process.env.INGEST_USER_AGENT;
+    vi.stubEnv('INGEST_USER_AGENT', '');
     await expect(main(['--jahre', '2026'], { heute: HEUTE })).rejects.toThrow(/INGEST_USER_AGENT fehlt/);
   });
 });

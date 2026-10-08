@@ -5,6 +5,8 @@ export type AbrufOptionen = {
   etag?: string | null;
   fetchImpl?: typeof fetch;
   wartezeitenMs?: readonly number[];
+  /** Zeitlimit je Versuch in Millisekunden, Standard 30 000. Ein Timeout wird wie ein Netzwerkfehler wiederholt. */
+  timeoutMs?: number;
 };
 
 export type AbrufErgebnis =
@@ -12,6 +14,7 @@ export type AbrufErgebnis =
   | { status: 'unveraendert'; url: string }
   | { status: 'nicht_vorhanden'; url: string };
 
+const STANDARD_TIMEOUT_MS = 30_000;
 const STANDARD_WARTEZEITEN_MS = [1_000, 4_000, 16_000] as const;
 
 export const sollXmlUrl = (jahr: number): string =>
@@ -31,7 +34,7 @@ export async function holeSollXml(jahr: number, opt: AbrufOptionen): Promise<Abr
   for (let versuch = 0; ; versuch++) {
     let ursache: unknown;
     try {
-      const antwort = await holen(url, { headers });
+      const antwort = await holen(url, { headers, signal: AbortSignal.timeout(opt.timeoutMs ?? STANDARD_TIMEOUT_MS) });
       if (antwort.status === 304) return { status: 'unveraendert', url };
       if (antwort.status === 404) return { status: 'nicht_vorhanden', url };
       if (antwort.ok) {

@@ -19,12 +19,16 @@ export type SollIngestOptionen = {
   ablageVerzeichnis: string;
   lokaleDatei?: string;
   abruf?: typeof holeSollXml;
+  /** Test-Seam: ersetzt das Speichern der Zeilen. */
+  speichern?: typeof speichereSollZeilen;
 };
 
 export type JahresErgebnis = {
   jahr: number;
   runId: string;
   status: LaufStatus;
+  /** Lauf aus lokaler Datei (Testlauf), nicht aus dem Netz. */
+  lokal: boolean;
   zusammenfassung?: SollZusammenfassung;
   hinweis?: string;
 };
@@ -68,11 +72,11 @@ export async function ladeSollJahr(sql: Sql, jahr: number, opt: SollIngestOption
   ): Promise<JahresErgebnis> => {
     const fehler = status === 'failed' || status === 'quarantined' ? extra.hinweis : undefined;
     await beendeLauf(sql, runId, { status, rowsLoaded: extra.rowsLoaded, fehler });
-    return { jahr, runId, status, zusammenfassung: extra.zusammenfassung, hinweis: extra.hinweis };
+    return { jahr, runId, status, lokal: opt.lokaleDatei !== undefined, zusammenfassung: extra.zusammenfassung, hinweis: extra.hinweis };
   };
 
   try {
-    const vorher = await letzteSollDatei(sql, jahr);
+    const vorher = await letzteSollDatei(sql, jahr, { lokal: opt.lokaleDatei !== undefined });
     const abruf = opt.lokaleDatei
       ? await leseLokaleDatei(opt.lokaleDatei)
       : await (opt.abruf ?? holeSollXml)(jahr, { userAgent: opt.userAgent, etag: vorher?.etag ?? null });
@@ -103,7 +107,7 @@ export async function ladeSollJahr(sql: Sql, jahr: number, opt: SollIngestOption
         byteSize: abruf.inhalt.byteLength,
         ablageUri,
       });
-      return speichereSollZeilen(tx, runId, zeilen);
+      return (opt.speichern ?? speichereSollZeilen)(tx, runId, zeilen);
     });
     return await ende('succeeded', { rowsLoaded: anzahl.titel, zusammenfassung });
   } catch (e) {

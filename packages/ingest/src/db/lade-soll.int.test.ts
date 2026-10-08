@@ -16,8 +16,13 @@ const datei = (runId: string, jahr: number, sha256: string, abgerufenAm: Date, e
   abgerufenAm, sha256, byteSize: 1, ablageUri: 'file:///tmp/x.xml',
 });
 
-async function laufMitDatei(tx: Sql, status: 'succeeded' | 'failed', d: Omit<QuellDatei, 'runId'>): Promise<void> {
-  const runId = await starteLauf(tx, LAUF);
+async function laufMitDatei(
+  tx: Sql,
+  status: 'succeeded' | 'failed',
+  d: Omit<QuellDatei, 'runId'>,
+  lokaleDatei: string | null = null,
+): Promise<void> {
+  const runId = await starteLauf(tx, { ...LAUF, params: { jahr: d.jahr, datei: lokaleDatei } });
   await speichereQuellDatei(tx, { ...d, runId });
   await beendeLauf(tx, runId, { status });
 }
@@ -57,8 +62,15 @@ describe('Laden der Soll-Rohdaten', () => {
       await laufMitDatei(tx, 'succeeded', { ...datei('', 1999, 'c'.repeat(64), new Date('2025-12-01'), '"alt"') });
       await laufMitDatei(tx, 'succeeded', { ...datei('', 1999, 'a'.repeat(64), new Date('2026-01-01'), '"neu"') });
       await laufMitDatei(tx, 'failed', { ...datei('', 1999, 'b'.repeat(64), new Date('2026-02-01'), '"kaputt"') });
-      expect(await letzteSollDatei(tx, 1999)).toEqual({ sha256: 'a'.repeat(64), etag: '"neu"' });
-      expect(await letzteSollDatei(tx, 1998)).toBeNull();
+      expect(await letzteSollDatei(tx, 1999, { lokal: false })).toEqual({ sha256: 'a'.repeat(64), etag: '"neu"' });
+      expect(await letzteSollDatei(tx, 1998, { lokal: false })).toBeNull();
+    }));
+
+  it('trennt Läufe aus lokalen Dateien von Netzläufen', () =>
+    imRollback(async (tx) => {
+      await laufMitDatei(tx, 'succeeded', datei('', 1999, 'e'.repeat(64), new Date('2026-03-01'), '"lokal"'), 'x.xml');
+      expect(await letzteSollDatei(tx, 1999, { lokal: false })).toBeNull();
+      expect(await letzteSollDatei(tx, 1999, { lokal: true })).toEqual({ sha256: 'e'.repeat(64), etag: '"lokal"' });
     }));
 
   it('hinterlässt keine Teildaten, wenn das Speichern scheitert', () =>

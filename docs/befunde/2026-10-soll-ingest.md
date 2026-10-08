@@ -206,6 +206,18 @@ Die Texte enthalten teils Zeilenumbrüche aus dem Quelltext (2015, 2022), in 201
 
 ## Folgerungen für Plan 2 und 3
 - Plan 3 (`core`): Titeltexte bereinigen. Zeilenumbrüche, Silbentrennung wie „KfW-\nBankengruppe“ und unsichtbare Zeichen wie U+FEFF in `raw.soll_titel.titel_text` sind im Rohtext erhalten und müssen beim Aufbau von `core` normalisiert werden.
+- Plan 3: Maßgeblicher Lauf je Jahr ist der letzte `succeeded`-Lauf mit `params->>'datei' is null`. Läufe mit `params.datei` sind Testläufe aus lokalen Dateien und gehören in keine Auswertung.
+- Ausmaß von U+FEFF im Rohtext (nur `succeeded`-Läufe mit `params->>'datei' is null`). Abfrage je Jahr:
+  ```sql
+  select t.jahr,
+         count(*) filter (where t.titel_text like '%' || chr(65279) || '%') as titel_mit_feff,
+         count(*) as titel_gesamt
+  from raw.soll_titel t join ops.load_run l using (run_id)
+  where l.status = 'succeeded' and l.params->>'datei' is null
+  group by t.jahr order by t.jahr;
+  ```
+  Ergebnis: 2012 und 2013: 0; 2014: 124; 2015: 127; 2016: 130; 2017: 132; 2018: 130; 2019: 132; 2020: 132; 2021: 132; 2022: 134; 2023: 133; 2024: 136; 2025 und 2026: 0. Dieselbe Prüfung über alle Jahre (`kapitel_text`, `ausgabeart_text`, `titelgruppe_text` jeweils mit `like '%' || chr(65279) || '%'`): 11 Kapitel-Zeilen, 0 Ausgabeart-Zeilen, 218 Titelgruppen-Zeilen betroffen. Normalisierung in `core` muss daher alle vier Textfelder behandeln.
+- `trim()` entfernt U+FEFF und geschützte Leerzeichen (NBSP) an Textenden. Der Rohtext in `raw` ist dort nicht byte-genau; die gezählten Vorkommen stehen im Text, nicht an den Enden.
 - Zeitreihen sind für 2012 bis 2026 vollständig. Beim Vergleich über Jahre beachten: Bezeichnungen und Zuschnitte wechseln.
 - `flexibilisiert` ist nullable: Abfragen und Dimensionen (`core.dim_titel`) müssen null als „nicht anwendbar“ behandeln und dürfen es nicht als „nein“ zählen. `seite` ist ebenfalls optional.
 - DQ-Prüfung: Die Kontrollsumme je Jahr (Haushaltsausgleich, Anlagen getrennt) funktioniert in allen 15 Jahren.

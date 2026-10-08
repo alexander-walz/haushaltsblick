@@ -138,6 +138,27 @@ describe('Datenvertrag', () => {
     expect(titelAus(zeilen, '0101', '68101').titelText).toBe('A B');
   });
 
+  it('meldet ein <text> nach <soll> als Vertragsfehler', async () => {
+    const xml = huelle('<ausgaben><titel nr="68101" flexibilisiert="nein" fkt="011"><text>A</text><soll wert="1"/><text>B</text></titel></ausgaben>');
+    const fehler = await sammle([xml]).catch((e: unknown) => e);
+    expect(fehler).toBeInstanceOf(XmlVertragsFehler);
+    expect((fehler as Error).message).toMatch(/Mehr als ein <text> in titel/);
+  });
+
+  it('meldet ein leeres Dokument als Vertragsfehler', async () => {
+    const fehler = await sammle(['<haushalt jahr="2026"/>']).catch((e: unknown) => e);
+    expect(fehler).toBeInstanceOf(XmlVertragsFehler);
+    expect((fehler as Error).message).toMatch(/Datei enthält keine Kapitel und Titel \(bei \/haushalt\)/);
+  });
+
+  it('meldet eine doppelte Kapitelnummer als Vertragsfehler', async () => {
+    const kap = '<kapitel nr="0101"><text>K</text></kapitel>';
+    const xml = `<haushalt jahr="2026"><einzelplan nr="01"><text>EP</text>${kap}${kap}</einzelplan></haushalt>`;
+    const fehler = await sammle([xml]).catch((e: unknown) => e);
+    expect(fehler).toBeInstanceOf(XmlVertragsFehler);
+    expect((fehler as Error).message).toMatch(/Kapitel 0101 mehrfach vorhanden/);
+  });
+
   it('nennt den Pfad der Fundstelle', async () => {
     const fehler = (await sammle([huelle('<verpflichtung/>')]).catch((e: unknown) => e)) as XmlVertragsFehler;
     expect(fehler.pfad).toBe('/haushalt[2026]/einzelplan[01]/kapitel[0101]');

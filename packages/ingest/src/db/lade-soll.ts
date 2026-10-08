@@ -50,12 +50,21 @@ export async function beendeLauf(
     where run_id = ${runId}`;
 }
 
-export async function letzteSollDatei(sql: Sql, jahr: number): Promise<{ sha256: string; etag: string | null } | null> {
+/**
+ * Letzte erfolgreich geladene Datei eines Jahres. Netzläufe und Läufe aus lokalen Dateien (params.datei)
+ * werden getrennt betrachtet: lokal=false liefert nur Netzläufe, lokal=true nur Dateiläufe.
+ */
+export async function letzteSollDatei(
+  sql: Sql,
+  jahr: number,
+  opt: { lokal: boolean },
+): Promise<{ sha256: string; etag: string | null } | null> {
   const [datei] = await sql<{ sha256: string; http_etag: string | null }[]>`
     select f.sha256, f.http_etag
     from raw.source_file f join ops.load_run l using (run_id)
     where f.source_id = 'SRC_SOLL_XML' and f.jahr = ${jahr} and l.status = 'succeeded'
-    order by f.fetched_at desc
+      and (l.params->>'datei' is not null) = ${opt.lokal}
+    order by f.fetched_at desc, l.started_at desc
     limit 1`;
   return datei ? { sha256: datei.sha256, etag: datei.http_etag } : null;
 }

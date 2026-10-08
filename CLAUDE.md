@@ -26,6 +26,7 @@ Vitest, saxes, postgres (porsager), Supabase CLI 2.120.0 lokal über pnpm dlx.
 - pnpm db:start | db:reset | db:stop    lokale Postgres-Datenbank mit Migrationen
 - pnpm --filter @hb/ingest start --jahre 2024-2026     Soll-Ingest, INGEST_USER_AGENT muss gesetzt sein
 - pnpm --filter @hb/ingest start --jahre 2026 --datei fixtures/soll_2026_auszug.xml   Ingest aus lokaler Datei
+  Achtung: schreibt in die lokale Datenbank. Läufe mit params.datei sind Testläufe und müssen in allen Auswertungen ausgeschlossen werden (where params->>'datei' is null).
 
 ## Konventionen
 - Fachbegriffe deutsch (soll, einzelplan_nr, ladeSollJahr), technische Begriffe englisch.
