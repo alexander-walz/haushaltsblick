@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Auszug aus https://www.bundeshaushalt.de/static/daten/2026/soll/haushalt_2026.xml (Abruf 08.10.2026), reduziert auf Sonderfälle -->
+<haushalt xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" jahr="2026">
+  <einzelplan nr="01">
+    <text>Bundespräsident und Bundespräsidialamt</text>
+    <kapitel nr="0101">
+      <text>Bundespräsident</text>
+      <einnahmen>
+        <einnahmen-ausgaben-art>
+          <text>Übrige Einnahmen</text>
+          <titel nr="38103" flexibilisiert="nein" fkt="890" seite="6"><text>Verrechnungseinnahmen gemäß §&#160;61 BHO</text><soll wert="0"/></titel>
+        </einnahmen-ausgaben-art>
+      </einnahmen>
+      <ausgaben>
+        <einnahmen-ausgaben-art>
+          <text>Zuweisungen und Zuschüsse (ohne Investitionen)</text>
+          <titel nr="68101" flexibilisiert="nein" fkt="011" seite="6"><text>Übernahme von Patenschaften, Ausgaben aus besonderer Veranlassung und besondere Bewilligungen.</text><soll wert="1348"/></titel>
+        </einnahmen-ausgaben-art>
+      </ausgaben>
+      <ausgaben>
+        <titel nr="42101" flexibilisiert="ja" fkt="011" seite="7"><text>Bezüge des Bundespräsidenten</text><soll wert="277"/></titel>
+      </ausgaben>
+    </kapitel>
+  </einzelplan>
+  <einzelplan nr="04">
+    <text>Bundeskanzler und Bundeskanzleramt</text>
+    <kapitel nr="0411">
+      <text>Zentral veranschlagte Verwaltungseinnahmen und -ausgaben des Geschäftsbereichs des BKAmts</text>
+      <einnahmen>
+        <titelgruppe nr="57">
+          <text>Versorgung der Beamtinnen und Beamten sowie der Richterinnen und Richter</text>
+          <titel nr="11957" flexibilisiert="nein" fkt="018" seite="12"><text>Vermischte Einnahmen</text><soll wert="16"/></titel>
+        </titelgruppe>
+      </einnahmen>
+      <ausgaben>
+        <einnahmen-ausgaben-art>
+          <text>Besondere Finanzierungsausgaben</text>
+          <titel nr="97201" flexibilisiert="nein" fkt="880" seite="13"><text>Globale Minderausgabe Konsolidierungsbeitrag</text><soll wert="-168"/></titel>
+        </einnahmen-ausgaben-art>
+      </ausgaben>
+    </kapitel>
+    <kapitel nr="0415"><text>Die Beauftragte der Bundesregierung für Ostdeutschland (entfallenes Kapitel)</text></kapitel>
+  </einzelplan>
+  <einzelplan nr="06">
+    <text>Bundesministerium des Innern</text>
+    <kapitel nr="0618"><text>Bundesinstitut für Sportwissenschaft (entfallenes Kapitel)</text><ausgaben/></kapitel>
+  </einzelplan>
+  <einzelplan nr="60">
+    <text>Allgemeine Finanzverwaltung</text>
+    <kapitel nr="6002">
+      <text>Allgemeine Bewilligungen</text>
+      <einnahmen>
+        <einnahmen-ausgaben-art>
+          <text>Steuern und steuerähnliche Abgaben</text>
+          <titel nr="09201" flexibilisiert="nein" fkt="820" seite="25"><text>Münzeinnahmen</text><soll wert="145000"/></titel>
+        </einnahmen-ausgaben-art>
+      </einnahmen>
+      <anlage>
+        <kapitel nr="6092">
+          <text>Anlage 3 Wirtschaftsplan des Klima- und Transformationsfonds (6092)</text>
+          <einnahmen>
+            <einnahmen-ausgaben-art>
+              <text>Verwaltungseinnahmen</text>
+              <titel nr="13203" flexibilisiert="nein" fkt="332" seite="72"><text>Erlöse aus der CO2-Bepreisung gemäß Brennstoffemissionshandelsgesetz</text><soll wert="16713426"/></titel>
+            </einnahmen-ausgaben-art>
+          </einnahmen>
+          <ausgaben>
+            <einnahmen-ausgaben-art>
+              <text>Zuweisungen und Zuschüsse (ohne Investitionen)</text>
+              <titel nr="68309" flexibilisiert="nein" fkt="643" seite="81"><text>Zuschuss zu den Übertragungsnetzkosten</text><soll wert="6500000"/></titel>
+            </einnahmen-ausgaben-art>
+          </ausgaben>
+        </kapitel>
+      </anlage>
+    </kapitel>
+  </einzelplan>
+</haushalt>

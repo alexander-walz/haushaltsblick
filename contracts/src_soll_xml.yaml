@@ -1,0 +1,35 @@
+id: SRC_SOLL_XML
+owner: haushaltsblick-data
+beschreibung: Haushaltsplan des Bundes, Soll je Titel
+url_muster: https://www.bundeshaushalt.de/static/daten/{jahr}/soll/haushalt_{jahr}.xml
+lizenz: Amtliches Werk, Quellenvermerk "Bundesministerium der Finanzen, bundeshaushalt.de"
+aktualisierung: bei neuem Haushaltsstand, Prüfung wöchentlich, bedingter Abruf über ETag
+verfuegbarkeit: 2012 bis 2026 bestätigt am 08.10.2026, Folgejahr liefert 404 bis zur Veröffentlichung
+einheit_betrag: tausend_eur
+schema:
+  wurzel: haushalt[@jahr]
+  pfad: einzelplan[@nr]/kapitel[@nr]/(anlage/kapitel[@nr])?/(einnahmen|ausgaben)/(einnahmen-ausgaben-art|titelgruppe[@nr])?/titel[@nr]
+  elemente: [haushalt, einzelplan, kapitel, anlage, text, einnahmen, ausgaben, einnahmen-ausgaben-art, titelgruppe, titel, soll]
+  titel_attribute: [nr, flexibilisiert, fkt, seite]
+  betrag: titel/soll[@wert]
+erwartungen:
+  - haushalt_jahr: "^[0-9]{4}$"
+  - einzelplan_nr: "^[0-9]{2}$"
+  - kapitel_nr: "^[0-9]{4}$ und beginnt mit der Einzelplannummer"
+  - titel_nr: "^[0-9]{5}$"
+  - fkt: "^[0-9]{3}$"
+  - flexibilisiert: [ja, nein]
+  - soll_wert: "^-?[0-9]+$"
+  - seite: "^[0-9]+$, optional"
+  - titel: liegt innerhalb von einnahmen oder ausgaben und hat genau ein soll
+besonderheiten:
+  - anlage: Wirtschaftspläne von Sondervermögen, 2026 Kapitel 6092 (Klima- und Transformationsfonds) in Kapitel 6002. Nicht Teil des Gesamthaushalts, getrennt summieren.
+  - mehrere Blöcke einnahmen oder ausgaben je Kapitel (erst mit Ausgabeart, dann flexibilisierte Titel ohne)
+  - entfallene Kapitel ohne Titel, teils mit leerem Element (2026 Kapitel 0618 mit <ausgaben/>)
+  - negative Soll-Werte bei globalen Minderausgaben (Gruppe 972)
+kontrollwerte_2026:
+  haushalt_tsd_eur: 524540138 (Einnahmen gleich Ausgaben, entspricht dem Wurzelwert der internalapi)
+  anlagen_tsd_eur: 34803623 (Einnahmen gleich Ausgaben)
+  anzahl_titel: 6995
+  entfallene_kapitel: ["0415", "0454", "0618", "1204", "1608"]
+bei_verletzung: lauf_in_quarantaene

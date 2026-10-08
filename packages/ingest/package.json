@@ -1,0 +1,22 @@
+{
+  "name": "@hb/ingest",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/bin.ts",
+    "test": "vitest run --project unit",
+    "test:int": "vitest run --project integration",
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@hb/shared": "workspace:*",
+    "saxes": "6.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.1",
+    "tsx": "4.23.15",
+    "typescript": "7.0.2",
+    "vitest": "5.0.3"
+  }
+}
