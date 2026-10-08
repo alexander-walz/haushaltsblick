@@ -9,6 +9,30 @@ const ELEMENTE = new Set([
   'einnahmen-ausgaben-art', 'titelgruppe', 'titel', 'soll',
 ]);
 
+const ERLAUBTE_ATTRIBUTE: Record<string, readonly string[]> = {
+  haushalt: ['jahr', 'xmlns:xsi'],
+  einzelplan: ['nr'],
+  kapitel: ['nr'],
+  titelgruppe: ['nr'],
+  titel: ['nr', 'flexibilisiert', 'fkt', 'seite'],
+  soll: ['wert'],
+};
+
+/** Erlaubte Eltern je Element laut Datenvertrag (schema.pfad). */
+const ERLAUBTE_ELTERN: Record<string, readonly string[]> = {
+  haushalt: [],
+  einzelplan: ['haushalt'],
+  kapitel: ['einzelplan', 'anlage'],
+  anlage: ['kapitel'],
+  text: ['einzelplan', 'kapitel', 'einnahmen-ausgaben-art', 'titelgruppe', 'titel'],
+  einnahmen: ['kapitel'],
+  ausgaben: ['kapitel'],
+  'einnahmen-ausgaben-art': ['einnahmen', 'ausgaben'],
+  titelgruppe: ['einnahmen', 'ausgaben'],
+  titel: ['einnahmen', 'ausgaben', 'einnahmen-ausgaben-art', 'titelgruppe'],
+  soll: ['titel'],
+};
+
 type Rahmen = {
   name: string;
   attrs: Record<string, string>;
@@ -102,10 +126,19 @@ export async function* parseSollXml(quelle: Iterable<string> | AsyncIterable<str
     };
   }
 
+  parser.on('error', (e) => {
+    throw new XmlVertragsFehler(`XML-Syntaxfehler: ${e.message}`, pfad());
+  });
+
   parser.on('opentag', (tag) => {
     if (!ELEMENTE.has(tag.name)) verletze(`Unbekanntes Element <${tag.name}>`);
     const attrs = tag.attributes as Record<string, string>;
     const eltern = stack.at(-1);
+    const erlaubt = ERLAUBTE_ATTRIBUTE[tag.name] ?? [];
+    for (const a of Object.keys(attrs)) {
+      if (!erlaubt.includes(a)) verletze(`Unbekanntes Attribut ${a} an <${tag.name}>`);
+    }
+    if (!eltern && tag.name !== 'haushalt') verletze(`<${tag.name}> nicht erlaubt als Wurzel`);
     const pos = (eltern?.kinder.get(tag.name) ?? 0) + 1;
     eltern?.kinder.set(tag.name, pos);
 
@@ -130,12 +163,18 @@ export async function* parseSollXml(quelle: Iterable<string> | AsyncIterable<str
         if (!finde('einnahmen') && !finde('ausgaben')) verletze('<titel> außerhalb von <einnahmen>/<ausgaben>');
         break;
       case 'soll':
-        if (eltern?.name !== 'titel') verletze('<soll> außerhalb von <titel>');
-        eltern!.soll = pruefe(attrs.wert, /^-?\d+$/, 'Soll-Wert');
+        if (eltern?.name !== 'titel') return verletze('<soll> außerhalb von <titel>');
+        if (eltern.soll !== undefined) verletze(`Titel ${eltern.attrs.nr} hat mehr als ein <soll>`);
+        eltern.soll = pruefe(attrs.wert, /^-?\d+$/, 'Soll-Wert');
+        if (!Number.isSafeInteger(Number(eltern.soll))) verletze(`Soll-Wert ungültig: ${eltern.soll}`);
         break;
       case 'text':
         textPuffer = '';
         break;
+    }
+
+    if (eltern && !ERLAUBTE_ELTERN[tag.name]!.includes(eltern.name)) {
+      verletze(`<${tag.name}> nicht erlaubt in <${eltern.name}>`);
     }
 
     const kennung = tag.name === 'haushalt' ? attrs.jahr : (attrs.nr ?? String(pos));
@@ -151,7 +190,10 @@ export async function* parseSollXml(quelle: Iterable<string> | AsyncIterable<str
     const r = stack.pop()!;
     if (tag.name === 'text') {
       const eltern = stack.at(-1);
-      if (eltern) eltern.text = textPuffer.trim();
+      if (eltern) {
+        if (eltern.text !== undefined) verletze(`Mehr als ein <text> in <${eltern.name}>`);
+        eltern.text = textPuffer.trim();
+      }
     } else if (tag.name === 'titel') {
       fertig.push(baueTitel(r));
     } else if (tag.name === 'kapitel') {

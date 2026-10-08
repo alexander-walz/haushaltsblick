@@ -130,7 +130,23 @@ describe('Datenvertrag', () => {
     expect(fehler.pfad).toBe('/haushalt[2026]/einzelplan[01]/kapitel[0101]');
   });
 
-  it('bricht bei abgeschnittener Datei ab', async () => {
-    await expect(sammle(['<haushalt jahr="2026"><einzelplan nr="01">'])).rejects.toThrow();
+  it('bricht bei abgeschnittener Datei mit XmlVertragsFehler ab', async () => {
+    await expect(sammle(['<haushalt jahr="2026"><einzelplan nr="01">'])).rejects.toBeInstanceOf(XmlVertragsFehler);
+  });
+
+  it.each([
+    ['zweites <soll> je Titel', huelle(titelXml('nr="68101" flexibilisiert="nein" fkt="011"', '<soll wert="1"/><soll wert="2"/>')), /Titel 68101 hat mehr als ein <soll>/],
+    ['zweites <text> je Element', huelle('<text>Zwei</text>'), /Mehr als ein <text> in <kapitel>/],
+    ['unbekanntes Attribut am Titel', huelle(titelXml('nr="68101" flexibilisiert="nein" fkt="011" extra="x"')), /Unbekanntes Attribut extra an <titel>/],
+    ['Titelgruppe direkt unter Kapitel', huelle('<titelgruppe nr="57"/>'), /<titelgruppe> nicht erlaubt in <kapitel>/],
+    ['Einnahmen direkt unter Einzelplan', '<haushalt jahr="2026"><einzelplan nr="01"><einnahmen/></einzelplan></haushalt>', /<einnahmen> nicht erlaubt in <einzelplan>/],
+    ['fehlerhaftes XML', '<haushalt jahr="2026"><einzelplan nr="01"></haushalt>', /XML-Syntaxfehler/],
+    ['riesiger Soll-Wert', huelle(titelXml('nr="68101" flexibilisiert="nein" fkt="011"', '<soll wert="99999999999999999999"/>')), /Soll-Wert ungültig: 99999999999999999999/],
+    ['ungültige Seite', huelle(titelXml('nr="68101" flexibilisiert="nein" fkt="011" seite="12a"')), /Seite ungültig: 12a/],
+    ['Dokument ohne <haushalt>', '<kapitel nr="0101"/>', /<kapitel> nicht erlaubt als Wurzel/],
+  ])('meldet %s als Vertragsfehler', async (_name, xml, meldung) => {
+    const fehler = await sammle([xml]).catch((e: unknown) => e);
+    expect(fehler).toBeInstanceOf(XmlVertragsFehler);
+    expect((fehler as Error).message).toMatch(meldung);
   });
 });
