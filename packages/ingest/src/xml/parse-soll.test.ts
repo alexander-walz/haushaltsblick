@@ -125,6 +125,19 @@ describe('Datenvertrag', () => {
     expect((fehler as Error).message).toMatch(meldung);
   });
 
+  const titelMitText = (texte: string) =>
+    huelle(`<ausgaben><titel nr="68101" flexibilisiert="nein" fkt="011">${texte}<soll wert="1"/></titel></ausgaben>`);
+
+  it('verkettet mehrere <text>-Segmente eines Titels ohne Trennzeichen', async () => {
+    const zeilen = await sammle([titelMitText('<text>Zuschüsse für CO</text><text>2</text><text>-arme Fahrzeuge</text>')]);
+    expect(titelAus(zeilen, '0101', '68101').titelText).toBe('Zuschüsse für CO2-arme Fahrzeuge');
+  });
+
+  it('behält Leerzeichen an Segmentgrenzen und trimmt nur den Gesamttext', async () => {
+    const zeilen = await sammle([titelMitText('<text> A </text><text>B </text>')]);
+    expect(titelAus(zeilen, '0101', '68101').titelText).toBe('A B');
+  });
+
   it('nennt den Pfad der Fundstelle', async () => {
     const fehler = (await sammle([huelle('<verpflichtung/>')]).catch((e: unknown) => e)) as XmlVertragsFehler;
     expect(fehler.pfad).toBe('/haushalt[2026]/einzelplan[01]/kapitel[0101]');

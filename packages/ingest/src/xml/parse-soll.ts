@@ -43,6 +43,8 @@ type Rahmen = {
   kinder: Map<string, number>;
   /** Inhalt des direkten <text>-Kinds. */
   text?: string;
+  /** Nur bei <titel>: unbeschnittene, verkettete <text>-Segmente. */
+  textRoh?: string;
   /** Nur bei <titel>: Rohwert aus <soll wert>. */
   soll?: string;
   /** Nur bei <kapitel>: Anzahl direkt zugeordneter Titel. */
@@ -192,8 +194,14 @@ export async function* parseSollXml(quelle: Iterable<string> | AsyncIterable<str
     if (tag.name === 'text') {
       const eltern = stack.at(-1);
       if (eltern) {
-        if (eltern.text !== undefined) verletze(`Mehr als ein <text> in <${eltern.name}>`);
-        eltern.text = textPuffer.trim();
+        if (eltern.name === 'titel') {
+          // Tiefgestellte Zeichen (CO2) zerlegen den Titeltext in mehrere Segmente.
+          eltern.textRoh = (eltern.textRoh ?? '') + textPuffer;
+          eltern.text = eltern.textRoh.trim();
+        } else {
+          if (eltern.text !== undefined) verletze(`Mehr als ein <text> in <${eltern.name}>`);
+          eltern.text = textPuffer.trim();
+        }
       }
     } else if (tag.name === 'titel') {
       fertig.push(baueTitel(r));

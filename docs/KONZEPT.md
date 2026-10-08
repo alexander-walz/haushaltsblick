@@ -115,6 +115,7 @@ Die Bezeichnungen der Seed-Tabellen sind vor dem Go-Live gegen die aktuell gült
 | Ist erst nach Jahresabschluss | Ist 2026 frühestens 2027 | Laufendes Jahr nur Soll, Ist als „nicht verfügbar“ statt 0 |
 | Ressortzuschnitte ändern sich | Bezeichnungen und Kapitel wandern zwischen Jahren | Dimensionen je Jahr historisieren, Zeitreihen über Titelschlüssel und Bezeichnung erklären |
 | Fehlendes `flexibilisiert` | 2012 bis 2024 bei Einnahmetiteln | null = nicht anwendbar, bei Ausgabetiteln Vertragsfehler |
+| Titeltext in mehreren `<text>`-Segmenten | Tiefgestellte 2 in „CO₂“ (2015, 2022 bis 2024, z. B. Titel `68424`) | Segmente eines `<titel>` ohne Trennzeichen verketten; mehrere `<text>` bei anderen Elementen bleiben Vertragsfehler |
 | Seite ohne Angabe | `seite="-"` 2016 bis 2020 | seite = null |
 
 ## 4. Datenquellen und Datenverträge
@@ -167,7 +168,7 @@ erwartungen:
   - flexibilisiert: [ja, nein], fehlt bei Einnahmetiteln 2012 bis 2024 (dann null), Pflicht bei Ausgabetiteln
   - soll_wert: "^-?[0-9]+$"
   - seite: "^[0-9]+$ oder \"-\" (keine Angabe, 2016 bis 2020), optional"
-  - titel: liegt innerhalb von einnahmen oder ausgaben und hat genau ein soll
+  - titel: liegt innerhalb von einnahmen oder ausgaben und hat genau ein soll, ein oder mehrere text-Segmente
 besonderheiten:
   - anlage: Wirtschaftspläne von Sondervermögen, 2026 Kapitel 6092 (Klima- und Transformationsfonds) in Kapitel 6002. Nicht Teil des Gesamthaushalts, getrennt summieren.
   - mehrere Blöcke einnahmen oder ausgaben je Kapitel (erst mit Ausgabeart, dann flexibilisierte Titel ohne)
@@ -175,6 +176,7 @@ besonderheiten:
   - negative Soll-Werte bei globalen Minderausgaben (Gruppe 972)
   - Einnahmetitel ohne flexibilisiert in 2012 bis 2024, Wert null (nicht anwendbar); an Ausgabetiteln bleibt das Attribut Pflicht
   - seite="-" an wenigen Titeln 2016 bis 2020, bedeutet keine Seitenangabe, Wert null
+  - Titeltext in mehreren <text>-Segmenten (tiefgestellte Zeichen wie CO2), 2015 und 2022 bis 2024: verketten ohne Trennzeichen
 kontrollwerte_2026:
   haushalt_tsd_eur: 524540138 (Einnahmen gleich Ausgaben, entspricht dem Wurzelwert der internalapi)
   anlagen_tsd_eur: 34803623 (Einnahmen gleich Ausgaben)
