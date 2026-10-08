@@ -1,0 +1,15 @@
+{
+  "name": "haushaltsblick",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.0.9",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "test": "pnpm -r --if-present test",
+    "test:int": "pnpm -r --if-present test:int",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "db:start": "pnpm dlx supabase@2.120.0 db start && pnpm dlx supabase@2.120.0 migration up --local",
+    "db:reset": "pnpm dlx supabase@2.120.0 db reset --local",
+    "db:stop": "pnpm dlx supabase@2.120.0 stop"
+  }
+}
