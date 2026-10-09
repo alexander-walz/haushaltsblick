@@ -5,8 +5,8 @@ describe('laufKontext', () => {
   it('nutzt ohne Umgebungsvariablen den Projekt-User-Agent und den Trigger manual', () => {
     const k = laufKontext({});
     expect(k.trigger).toBe('manual');
-    expect(k.pipelineVersion).toBe('0.2.0');
-    expect(k.userAgent).toBe('Haushaltsblick/0.2.0 (+https://github.com/alexander-walz/haushaltsblick)');
+    expect(k.pipelineVersion).toBe('0.3.0');
+    expect(k.userAgent).toBe('Haushaltsblick/0.3.0 (+https://github.com/alexander-walz/haushaltsblick)');
   });
 
   it('übernimmt INGEST_USER_AGENT, HB_TRIGGER und GITHUB_SHA', () => {

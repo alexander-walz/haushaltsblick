@@ -111,4 +111,12 @@ describe('ladeApiJahr', () => {
       const e = await ladeApiJahr(tx, P, optionen(abruf));
       expect(e).toMatchObject({ status: 'failed', hinweis: 'Abruf nach 4 Versuchen fehlgeschlagen' });
     }));
+
+  it('liefert failed mit Hinweis, wenn der Lauf nicht abgeschlossen werden kann, und wirft nicht', () =>
+    imRollback(async (tx) => {
+      const beende = async () => { throw new Error('Verbindung verloren'); };
+      const e = await ladeApiJahr(tx, P, optionen(fakeAbruf(baueBaum(P, PLAN, 777)), { beende }));
+      expect(e.status).toBe('failed');
+      expect(e.hinweis).toMatch(/Lauf konnte nicht abgeschlossen werden: Verbindung verloren/);
+    }));
 });

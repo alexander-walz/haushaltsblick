@@ -169,4 +169,12 @@ describe('ladeSollJahr', () => {
       expect(e).toMatchObject({ status: 'failed', hinweis: 'Abruf nach 4 Versuchen fehlgeschlagen' });
       expect(await laufStatus(tx, e.runId)).toMatchObject({ status: 'failed', error: 'Abruf nach 4 Versuchen fehlgeschlagen' });
     }));
+
+  it('liefert failed mit Hinweis, wenn der Lauf nicht abgeschlossen werden kann, und wirft nicht', () =>
+    imRollback(async (tx) => {
+      const beende = async () => { throw new Error('Verbindung verloren'); };
+      const e = await ladeSollJahr(tx, 2026, optionen({ lokaleDatei: einmaligeDatei(), beende }));
+      expect(e.status).toBe('failed');
+      expect(e.hinweis).toMatch(/Lauf konnte nicht abgeschlossen werden: Verbindung verloren/);
+    }));
 });
