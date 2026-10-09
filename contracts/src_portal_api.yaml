@@ -1,0 +1,31 @@
+id: SRC_PORTAL_API
+owner: haushaltsblick-data
+beschreibung: Bundeshaushalt digital, internalapi budgetData, Soll und Ist hierarchisch bis zum Titel
+url_muster: https://www.bundeshaushalt.de/internalapi/budgetData?year={jahr}&account={expenses|income}&quota={target|actual}&unit=single&id={id}
+lizenz: Amtliches Werk, Quellenvermerk "Bundesministerium der Finanzen, bundeshaushalt.de"
+offiziell: false (undokumentierte Schnittstelle, kann sich ohne Ankündigung ändern)
+aktualisierung: wöchentliche Prüfung über meta.timestamp der Wurzel je Jahr, Konto und Quote
+verfuegbarkeit: Ist 2012 bis Vorjahr; Soll 2012 bis Folgejahr (Folgejahr als Entwurf); sonst HTTP 404 (Stand 09.10.2026)
+einheit_betrag: eur (Zahl mit Cent)
+schema:
+  ebenen: [Budget (levelCur 0), Section = Einzelplan (1), Chapter = Kapitel (2), Title (3)]
+  abruf_bis: Kapitel; Titel stehen als children im Kapitel
+  pflichtfelder:
+    meta: [year, unit, quota, account, timestamp, modifyDate, entity, levelCur, levelMax]
+    detail: [label, value, relativeToParentValue, relativeValue]
+    children: [id, budgetNumber, label, value, relativeToParentValue, relativeValue]
+  ids: Einzelplan 2 Ziffern, Kapitel 4 Ziffern (beginnt mit Einzelplan), Titel 9 Ziffern (Kapitel + Titel)
+  budget_number_titel: "KKKK GGG NN - FFF (Kapitel, Titel in zwei Teilen, Funktionskennziffer)"
+erwartungen:
+  - meta.year, meta.account und meta.quota entsprechen der Anfrage
+  - meta.levelCur entspricht der Ebene der Anfrage
+  - Betrag jedes Knotens ist centgenau die Summe seiner Kinder
+  - Titelschlüssel je Jahr, Konto und Quote eindeutig
+besonderheiten:
+  - Titel mit Wert 0 fehlen; fehlend bedeutet 0
+  - Anlagen (Wirtschaftspläne von Sondervermögen, z. B. KTF 6092) sind nicht enthalten
+  - unbekannte Felder sind erlaubt und werden als Warnung protokolliert
+kontrollwerte:
+  ist_2024_ausgaben_gesamt_eur: 474753727609.58
+  soll_2026_ausgaben_gesamt_eur: 524540138000.00 (gleich XML ohne Anlagen)
+bei_verletzung: lauf_in_quarantaene
