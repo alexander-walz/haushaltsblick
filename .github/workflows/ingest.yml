@@ -26,12 +26,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 180
     env:
-      DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
       HB_TRIGGER: ${{ github.event_name == 'schedule' && 'schedule' || 'manual' }}
       HB_ARCHIV_BASIS_URL: https://github.com/${{ github.repository }}/releases/download/rohdaten
       JAHRE: ${{ inputs.jahre || 'alle' }}
       NEU_LADEN: ${{ inputs.neu_laden && '--neu-laden' || '' }}
-      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4
@@ -44,27 +42,37 @@ jobs:
         with:
           version: 2.120.0
       - name: Migrationen anwenden
-        run: supabase db push --db-url "$DATABASE_URL"
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: supabase db push --db-url "$DATABASE_URL" --yes
       - name: Soll aus der XML-Datei
         id: soll
         continue-on-error: true
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
           # shellcheck disable=SC2086
           pnpm --silent --filter @hb/ingest start --jahre "$JAHRE" $NEU_LADEN | tee -a bericht.md
       - name: Ist aus der internalapi
         id: ist
         continue-on-error: true
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
           # shellcheck disable=SC2086
           pnpm --silent --filter @hb/ingest api --quote ist --jahre "$JAHRE" $NEU_LADEN | tee -a bericht.md
       - name: Soll-Entwurf des Folgejahres aus der internalapi
         id: entwurf
         continue-on-error: true
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
           # shellcheck disable=SC2086
           pnpm --silent --filter @hb/ingest api --quote soll --jahre "$(( $(date +%Y) + 1 ))" $NEU_LADEN | tee -a bericht.md
       - name: Rohdaten im Release ablegen
         if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           shopt -s nullglob
           dateien=(data/raw/archiv/*.gz)

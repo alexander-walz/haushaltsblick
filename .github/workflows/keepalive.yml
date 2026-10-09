@@ -3,6 +3,7 @@ on:
   schedule:
     - cron: '42 5 * * *'
   workflow_dispatch:
+permissions: {}
 jobs:
   ping:
     if: vars.HB_INGEST_AKTIV == 'true'
