@@ -1,0 +1,13 @@
+haushaltsblick:
+  target: standard
+  outputs:
+    standard:
+      type: postgres
+      host: "{{ env_var('HB_DB_HOST') }}"
+      port: "{{ env_var('HB_DB_PORT') | as_number }}"
+      user: "{{ env_var('HB_DB_USER') }}"
+      password: "{{ env_var('HB_DB_PASSWORD') }}"
+      dbname: "{{ env_var('HB_DB_NAME') }}"
+      schema: core
+      sslmode: "{{ env_var('HB_DB_SSLMODE') }}"
+      threads: 4

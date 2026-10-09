@@ -1,0 +1,17 @@
+version: 2
+sources:
+  - name: raw
+    schema: raw
+    tables:
+      - name: soll_titel
+      - name: soll_kapitel
+      - name: source_file
+      - name: api_abruf
+      - name: api_knoten
+      - name: api_titel
+      - name: api_systematik_abruf
+      - name: api_systematik
+  - name: ops
+    schema: ops
+    tables:
+      - name: load_run

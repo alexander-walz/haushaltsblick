@@ -1,0 +1,33 @@
+name: haushaltsblick
+version: '0.3.0'
+config-version: 2
+profile: haushaltsblick
+
+model-paths: ['models']
+macro-paths: ['macros']
+test-paths: ['tests']
+seed-paths: ['seeds']
+target-path: target
+clean-targets: ['target', 'logs']
+
+vars:
+  dq13_ab_jahr: 2012
+
+models:
+  haushaltsblick:
+    staging:
+      +schema: core
+      +materialized: view
+    core:
+      +schema: core
+      +materialized: table
+    mart:
+      +schema: mart
+      +materialized: table
+
+seeds:
+  haushaltsblick:
+    +schema: core
+
+flags:
+  send_anonymous_usage_stats: false

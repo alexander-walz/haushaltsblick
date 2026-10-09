@@ -22,4 +22,12 @@ jobs:
         with: { version: 2.120.0 }
       - run: supabase db start
       - run: supabase migration up --local
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: pip install -r dbt/requirements.txt
+      - name: dbt Modelle leer bauen und Unit-Tests ausführen
+        run: |
+          pnpm dbt run --empty
+          pnpm dbt test --select "test_type:unit"
       - run: pnpm test:int

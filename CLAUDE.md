@@ -18,12 +18,16 @@ Umsetzungspläne: docs/superpowers/plans/.
 ## Stack (Stand Plan 1)
 Node 24, pnpm Workspaces, TypeScript strict (ESM, moduleResolution Bundler, Quellpakete ohne Build),
 Vitest, saxes, postgres (porsager), Supabase CLI 2.120.0 lokal über pnpm dlx.
+dbt-core 1.12.5 mit dbt-postgres 1.11.0 (Python 3.13, lokal in .venv über uv).
 
 ## Befehle
 - pnpm test                 Unit-Tests aller Pakete
 - pnpm test:int             Integrationstests (lokale Datenbank muss laufen)
 - pnpm typecheck
 - pnpm db:start | db:reset | db:stop    lokale Postgres-Datenbank mit Migrationen
+- uv venv .venv --python 3.13 && uv pip install --python .venv -r dbt/requirements.txt   dbt einrichten (einmalig)
+- pnpm dbt build                 Modelle, Unit-Tests und DQ-Prüfungen gegen DATABASE_URL (Standard lokal)
+- pnpm dbt test --select "test_type:unit"   nur dbt-Unit-Tests
 - pnpm --filter @hb/ingest start --jahre 2024-2026     Soll-Ingest, INGEST_USER_AGENT muss gesetzt sein
 - pnpm --filter @hb/ingest start --jahre 2026 --datei fixtures/soll_2026_auszug.xml   Ingest aus lokaler Datei
   Achtung: schreibt in die lokale Datenbank. Läufe mit params.datei sind Testläufe und müssen in allen Auswertungen ausgeschlossen werden (where params->>'datei' is null).
