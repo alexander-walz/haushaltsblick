@@ -11,10 +11,35 @@ describe('Datenbankschema', () => {
       expect(rows.map((r) => r.schema_name)).toEqual(['api', 'audit', 'core', 'mart', 'ops', 'raw', 'semantic']);
     }));
 
-  it('registriert die Soll-Quelle als offiziell', () =>
+  it('registriert beide Quellen mit Offiziell-Kennzeichen', () =>
     imRollback(async (tx) => {
       const rows = await tx`select source_id, offiziell, vertrag_pfad from ops.source_registry order by 1`;
-      expect(rows).toEqual([{ source_id: 'SRC_SOLL_XML', offiziell: true, vertrag_pfad: 'contracts/src_soll_xml.yaml' }]);
+      expect(rows).toEqual([
+        { source_id: 'SRC_PORTAL_API', offiziell: false, vertrag_pfad: 'contracts/src_portal_api.yaml' },
+        { source_id: 'SRC_SOLL_XML', offiziell: true, vertrag_pfad: 'contracts/src_soll_xml.yaml' },
+      ]);
+    }));
+
+  it('speichert API-Titel mit Titelschlüssel und Cent-Beträgen', () =>
+    imRollback(async (tx) => {
+      const [lauf] = await tx<{ run_id: string }[]>`
+        insert into ops.load_run (source_id, trigger, git_sha, pipeline_version)
+        values ('SRC_PORTAL_API', 'ci', 'test', '0') returning run_id`;
+      const [t] = await tx`
+        insert into raw.api_titel (run_id, jahr, konto, quote, einzelplan_nr, kapitel_nr, titel_nr, fkt, label, betrag_eur)
+        values (${lauf!.run_id}, 2024, 'ausgaben', 'ist', '04', '0411', '43257', '018', 'Versorgungsbezüge', 61346498.79)
+        returning titel_key, betrag_eur::text as betrag`;
+      expect(t).toEqual({ titel_key: '041143257', betrag: '61346498.79' });
+    }));
+
+  it('lehnt unbekannte Quoten ab', () =>
+    imRollback(async (tx) => {
+      const [lauf] = await tx<{ run_id: string }[]>`
+        insert into ops.load_run (source_id, trigger, git_sha, pipeline_version)
+        values ('SRC_PORTAL_API', 'ci', 'test', '0') returning run_id`;
+      await expect(inTransaktion(tx, (t) => t`
+        insert into raw.api_titel (run_id, jahr, konto, quote, einzelplan_nr, kapitel_nr, titel_nr, fkt, label, betrag_eur)
+        values (${lauf!.run_id}, 2024, 'ausgaben', 'plan', '04', '0411', '43257', '018', 'x', 1)`)).rejects.toThrow(/api_titel_quote_check/);
     }));
 
   it('aktiviert RLS auf allen Tabellen in raw und ops', () =>

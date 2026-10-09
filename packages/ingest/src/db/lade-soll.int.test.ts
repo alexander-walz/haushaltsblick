@@ -62,7 +62,7 @@ describe('Laden der Soll-Rohdaten', () => {
       await laufMitDatei(tx, 'succeeded', { ...datei('', 1999, 'c'.repeat(64), new Date('2025-12-01'), '"alt"') });
       await laufMitDatei(tx, 'succeeded', { ...datei('', 1999, 'a'.repeat(64), new Date('2026-01-01'), '"neu"') });
       await laufMitDatei(tx, 'failed', { ...datei('', 1999, 'b'.repeat(64), new Date('2026-02-01'), '"kaputt"') });
-      expect(await letzteSollDatei(tx, 1999, { lokal: false })).toEqual({ sha256: 'a'.repeat(64), etag: '"neu"' });
+      expect(await letzteSollDatei(tx, 1999, { lokal: false })).toEqual({ sha256: 'a'.repeat(64), etag: '"neu"', pipelineVersion: '0.0.0-test' });
       expect(await letzteSollDatei(tx, 1998, { lokal: false })).toBeNull();
     }));
 
@@ -70,7 +70,7 @@ describe('Laden der Soll-Rohdaten', () => {
     imRollback(async (tx) => {
       await laufMitDatei(tx, 'succeeded', datei('', 1999, 'e'.repeat(64), new Date('2026-03-01'), '"lokal"'), 'x.xml');
       expect(await letzteSollDatei(tx, 1999, { lokal: false })).toBeNull();
-      expect(await letzteSollDatei(tx, 1999, { lokal: true })).toEqual({ sha256: 'e'.repeat(64), etag: '"lokal"' });
+      expect(await letzteSollDatei(tx, 1999, { lokal: true })).toEqual({ sha256: 'e'.repeat(64), etag: '"lokal"', pipelineVersion: '0.0.0-test' });
     }));
 
   it('hinterlässt keine Teildaten, wenn das Speichern scheitert', () =>

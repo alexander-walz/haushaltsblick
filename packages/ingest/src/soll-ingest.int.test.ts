@@ -42,7 +42,24 @@ describe('ladeSollJahr', () => {
       expect(e.zusammenfassung?.haushaltTsdEur).toEqual({ einnahmen: 145016, ausgaben: 1457 });
       expect(await laufStatus(tx, e.runId)).toEqual({ status: 'succeeded', rows_loaded: 8, error: null });
       const [datei] = await tx<{ sha256: string }[]>`select sha256 from raw.source_file where run_id = ${e.runId}`;
-      expect(readdirSync(join(ablage, 'soll', '2026'))).toContain(`${datei!.sha256}.xml`);
+      expect(readdirSync(ablage)).toContain(`soll_2026_${datei!.sha256.slice(0, 16)}.xml.gz`);
+    }));
+
+  it('legt die Datei komprimiert im Archiv ab und speichert deren URI', () =>
+    imRollback(async (tx) => {
+      const e = await ladeSollJahr(tx, 2026, optionen({ lokaleDatei: einmaligeDatei(), archivBasisUrl: 'https://example.org/rohdaten' }));
+      const [datei] = await tx<{ sha256: string; ablage_uri: string }[]>`select sha256, ablage_uri from raw.source_file where run_id = ${e.runId}`;
+      const name = `soll_2026_${datei!.sha256.slice(0, 16)}.xml.gz`;
+      expect(datei!.ablage_uri).toBe(`https://example.org/rohdaten/${name}`);
+      expect(readdirSync(ablage)).toContain(name);
+    }));
+
+  it('lädt mit neuLaden auch eine unveränderte Datei erneut', () =>
+    imRollback(async (tx) => {
+      const pfad = einmaligeDatei();
+      await ladeSollJahr(tx, 2026, optionen({ lokaleDatei: pfad }));
+      const zweiter = await ladeSollJahr(tx, 2026, optionen({ lokaleDatei: pfad, neuLaden: true }));
+      expect(zweiter.status).toBe('succeeded');
     }));
 
   it('überspringt eine unveränderte Datei ohne doppelte Zeilen', () =>
@@ -64,6 +81,22 @@ describe('ladeSollJahr', () => {
       const zweiter = await ladeSollJahr(tx, 2026, optionen({ abruf }));
       expect(abruf.mock.calls[1]![1]).toMatchObject({ etag });
       expect(zweiter).toMatchObject({ status: 'skipped', hinweis: 'unverändert' });
+    }));
+
+  it('lädt bei geänderter pipeline_version trotz gleichem Inhalt neu und ruft ohne ETag ab', () =>
+    imRollback(async (tx) => {
+      const etag = `"e-${randomUUID()}"`;
+      const inhalt = einmaligerInhalt();
+      const abruf = vi.fn(async (_jahr: number, _opt: AbrufOptionen): Promise<AbrufErgebnis> => neu(inhalt, etag));
+      await ladeSollJahr(tx, 2026, optionen({ abruf, pipelineVersion: '0.1.0' }));
+      const zweiter = await ladeSollJahr(tx, 2026, optionen({ abruf, pipelineVersion: '0.2.0' }));
+      expect(abruf.mock.calls[1]![1].etag).toBeNull();
+      expect(zweiter.status).toBe('succeeded');
+      await tx`update ops.load_run set started_at = started_at + interval '1 second' where run_id = ${zweiter.runId}`;
+      await tx`update raw.source_file set fetched_at = fetched_at + interval '1 second' where run_id = ${zweiter.runId}`;
+      const dritter = await ladeSollJahr(tx, 2026, optionen({ abruf, pipelineVersion: '0.2.0' }));
+      expect(abruf.mock.calls[2]![1]).toMatchObject({ etag });
+      expect(dritter).toMatchObject({ status: 'skipped', hinweis: 'unverändert' });
     }));
 
   it('gibt den ETag eines Dateilaufs nicht an Netzabrufe weiter', () =>

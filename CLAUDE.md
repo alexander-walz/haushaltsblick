@@ -27,6 +27,8 @@ Vitest, saxes, postgres (porsager), Supabase CLI 2.120.0 lokal über pnpm dlx.
 - pnpm --filter @hb/ingest start --jahre 2024-2026     Soll-Ingest, INGEST_USER_AGENT muss gesetzt sein
 - pnpm --filter @hb/ingest start --jahre 2026 --datei fixtures/soll_2026_auszug.xml   Ingest aus lokaler Datei
   Achtung: schreibt in die lokale Datenbank. Läufe mit params.datei sind Testläufe und müssen in allen Auswertungen ausgeschlossen werden (where params->>'datei' is null).
+- pnpm --filter @hb/ingest api --quote ist --jahre 2012-2025   Ist aus der internalapi (beide Konten), --konten ausgaben|einnahmen, --neu-laden
+- pnpm --filter @hb/ingest api --quote soll --jahre 2027       Soll-Entwurf des Folgejahres aus der internalapi
 
 ## Konventionen
 - Fachbegriffe deutsch (soll, einzelplan_nr, ladeSollJahr), technische Begriffe englisch.
@@ -38,4 +40,7 @@ Vitest, saxes, postgres (porsager), Supabase CLI 2.120.0 lokal über pnpm dlx.
 ## Arbeitsweise
 - Testgetrieben: erst roter Test, dann Code.
 - Externe Quellen höflich abrufen: eindeutiger User-Agent mit Kontakt, höchstens 2 Anfragen pro Sekunde.
+- User-Agent ohne E-Mail: Standard ist Haushaltsblick/<version> (+https://github.com/alexander-walz/haushaltsblick).
+- Bei jeder Änderung an Parser, Crawler oder Datenmodell die Version in packages/ingest/package.json erhöhen (pipeline_version).
+- Alle Abrufe laufen nacheinander über die Drossel (500 ms), nie parallel.
 - Definition of Done: pnpm typecheck, pnpm test und pnpm test:int grün, KONZEPT.md bei Abweichungen aktualisiert.

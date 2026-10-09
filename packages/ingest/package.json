@@ -1,10 +1,11 @@
 {
   "name": "@hb/ingest",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "scripts": {
     "start": "tsx src/bin.ts",
+    "api": "tsx src/bin-api.ts",
     "test": "vitest run --project unit",
     "test:int": "vitest run --project integration",
     "typecheck": "tsc --noEmit -p ."
@@ -12,7 +13,8 @@
   "dependencies": {
     "@hb/shared": "workspace:*",
     "postgres": "3.4.9",
-    "saxes": "6.0.0"
+    "saxes": "6.0.0",
+    "zod": "4.6.5"
   },
   "devDependencies": {
     "@types/node": "^24.19.1",

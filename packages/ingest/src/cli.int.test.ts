@@ -59,8 +59,15 @@ describe('CLI', () => {
     );
   });
 
-  it('verlangt einen User-Agent für Abrufe aus dem Netz', async () => {
-    vi.stubEnv('INGEST_USER_AGENT', '');
-    await expect(main(['--jahre', '2026'], { heute: HEUTE })).rejects.toThrow(/INGEST_USER_AGENT fehlt/);
-  });
+  it('nutzt ohne INGEST_USER_AGENT den Projekt-User-Agent', () =>
+    imRollback(async (tx) => {
+      vi.stubEnv('INGEST_USER_AGENT', '');
+      const gesehen: string[] = [];
+      const abruf = async (_jahr: number, opt: { userAgent: string }): Promise<AbrufErgebnis> => {
+        gesehen.push(opt.userAgent);
+        return { status: 'nicht_vorhanden', url: sollXmlUrl(2027) };
+      };
+      await main(['--jahre', '2027'], { sql: tx, heute: HEUTE, ablageVerzeichnis: ablage, abruf, log: () => {} });
+      expect(gesehen).toEqual(['Haushaltsblick/0.2.0 (+https://github.com/alexander-walz/haushaltsblick)']);
+    }));
 });

@@ -1,0 +1,91 @@
+name: ingest
+on:
+  schedule:
+    - cron: '17 4 * * 1'
+  workflow_dispatch:
+    inputs:
+      jahre:
+        description: 'Jahre, z. B. 2024-2026 oder alle'
+        required: false
+        default: 'alle'
+      neu_laden:
+        description: 'Unveränderte Stände trotzdem neu laden'
+        type: boolean
+        default: false
+permissions:
+  contents: write
+concurrency:
+  group: ingest
+  cancel-in-progress: false
+defaults:
+  run:
+    shell: bash
+jobs:
+  ingest:
+    if: vars.HB_INGEST_AKTIV == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      HB_TRIGGER: ${{ github.event_name == 'schedule' && 'schedule' || 'manual' }}
+      HB_ARCHIV_BASIS_URL: https://github.com/${{ github.repository }}/releases/download/rohdaten
+      JAHRE: ${{ inputs.jahre || 'alle' }}
+      NEU_LADEN: ${{ inputs.neu_laden && '--neu-laden' || '' }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.120.0
+      - name: Migrationen anwenden
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: supabase db push --db-url "$DATABASE_URL" --yes
+      - name: Soll aus der XML-Datei
+        id: soll
+        continue-on-error: true
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          # shellcheck disable=SC2086
+          pnpm --silent --filter @hb/ingest start --jahre "$JAHRE" $NEU_LADEN | tee -a bericht.md
+      - name: Ist aus der internalapi
+        id: ist
+        continue-on-error: true
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          # shellcheck disable=SC2086
+          pnpm --silent --filter @hb/ingest api --quote ist --jahre "$JAHRE" $NEU_LADEN | tee -a bericht.md
+      - name: Soll-Entwurf des Folgejahres aus der internalapi
+        id: entwurf
+        continue-on-error: true
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          # shellcheck disable=SC2086
+          pnpm --silent --filter @hb/ingest api --quote soll --jahre "$(( $(date +%Y) + 1 ))" $NEU_LADEN | tee -a bericht.md
+      - name: Rohdaten im Release ablegen
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          shopt -s nullglob
+          dateien=(data/raw/archiv/*.gz)
+          if [ ${#dateien[@]} -eq 0 ]; then echo "Keine neuen Rohdaten."; exit 0; fi
+          gh release view rohdaten >/dev/null 2>&1 || gh release create rohdaten --title "Rohdaten" \
+            --notes "Unveränderte Rohdaten der Quellen, gzip-komprimiert. Datenquelle: Bundesministerium der Finanzen, bundeshaushalt.de. Rechtlich verbindlich ist ausschließlich der veröffentlichte Haushaltsplan."
+          gh release upload rohdaten "${dateien[@]}" --clobber
+      - name: Bericht
+        if: always()
+        run: |
+          if [ -f bericht.md ]; then { echo "## Ingest"; echo; cat bericht.md; } >> "$GITHUB_STEP_SUMMARY"; fi
+      - name: Ergebnis
+        if: steps.soll.outcome == 'failure' || steps.ist.outcome == 'failure' || steps.entwurf.outcome == 'failure'
+        run: |
+          echo "Mindestens ein Ingest-Schritt ist fehlgeschlagen oder in Quarantäne. Siehe Bericht und docs/betrieb.md."
+          exit 1
