@@ -44,13 +44,13 @@ Nach den Ingest-Schritten laufen `dbt seed`, `dbt run` und `dbt test` (getrennt,
 
 | ID | Kategorie | Prüfung | Schwere |
 | --- | --- | --- | --- |
-| DQ-01 | Vollständigkeit | Jeder Einzelplan des API-Solls ist in der XML vorhanden (nur Jahre mit identischem Stand) | error |
+| DQ-01 | Vollständigkeit | Jeder Einzelplan des API-Solls ist in der XML vorhanden (nur Jahre mit gleicher Summe und ohne Nachtragshaushalt) | error |
 | DQ-02 | Eindeutigkeit | Titelschlüssel je Jahr eindeutig im Mart | error |
 | DQ-03 | Gültigkeit | Titel 5-, Kapitel 4-stellig mit Einzelplan als Präfix, Funktion 3-stellig | error |
 | DQ-04 | Referenzielle Integrität | Jede Funktionskennziffer hat eine Bezeichnung | warn |
 | DQ-05 | Referenzielle Integrität | Jede Gruppierungsnummer hat eine Bezeichnung | warn |
 | DQ-06 | Konsistenz | Hauptgruppe 0 bis 3 nur in Einnahmen, 4 bis 9 nur in Ausgaben | warn |
-| DQ-07 | Abgleich | Einzelplansummen XML gleich API-Soll (nur Jahre mit identischem Stand) | error |
+| DQ-07 | Abgleich | Einzelplansummen XML gleich API-Soll (nur Jahre mit gleicher Summe und ohne Nachtragshaushalt) | error |
 | DQ-08 | Abgleich | API-Soll: Einnahmen gleich Ausgaben je Jahr | error |
 | DQ-09 | Abgleich | Summen entsprechen den gepflegten Kontrollsummen | error |
 | DQ-10 | Aktualität | Letzter Ladelauf je Quelle jünger als 8 Tage | warn |
