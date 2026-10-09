@@ -10,6 +10,8 @@ unit_tests:
           - {jahr: 2024, konto: ausgaben, quote: soll, ebene: gesamt, label: 'Sollwerte des Haushaltsjahres 2024', betrag_eur: 476807656000.00}
           - {jahr: 2027, konto: ausgaben, quote: soll, ebene: gesamt, label: 'Regierungsentwurf 2027', betrag_eur: 555435744000.00}
           - {jahr: 2024, konto: ausgaben, quote: ist, ebene: gesamt, label: 'Istwerte des Haushaltsjahres 2024', betrag_eur: 474753727609.58}
+          - {jahr: 2025, konto: ausgaben, quote: soll, ebene: gesamt, label: 'Haushaltsjahr 2025 (Soll)', betrag_eur: 502546000000.00}
+          - {jahr: 2026, konto: ausgaben, quote: soll, ebene: gesamt, label: 'Vorläufige Haushaltsführung 2026', betrag_eur: 520000000000.00}
       - input: ref('stg_soll_titel')
         rows:
           - {jahr: 2020, konto: ausgaben, ist_anlage: false, soll_eur: 362000000000.00}
@@ -21,6 +23,8 @@ unit_tests:
         - {jahr: 2019, konto: ausgaben, stand: 'nur Haushaltsplan-XML', anzahl_nachtraege: 0, differenz_xml_api_eur: null}
         - {jahr: 2020, konto: ausgaben, stand: 'Gesetz inkl. Nachtragshaushalt', anzahl_nachtraege: 2, differenz_xml_api_eur: -146530000000.00}
         - {jahr: 2024, konto: ausgaben, stand: 'Gesetz', anzahl_nachtraege: 0, differenz_xml_api_eur: 0.00}
+        - {jahr: 2025, konto: ausgaben, stand: 'Gesetz', anzahl_nachtraege: 0, differenz_xml_api_eur: null}
+        - {jahr: 2026, konto: ausgaben, stand: 'unbekannt', anzahl_nachtraege: 0, differenz_xml_api_eur: null}
         - {jahr: 2027, konto: ausgaben, stand: 'Regierungsentwurf', anzahl_nachtraege: 0, differenz_xml_api_eur: null}
 
   - name: funktion_nutzt_naechstgelegenes_jahr

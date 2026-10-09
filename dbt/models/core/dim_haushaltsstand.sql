@@ -20,7 +20,9 @@ select
     when a.label is null then 'nur Haushaltsplan-XML'
     when a.label ilike '%entwurf%' then 'Regierungsentwurf'
     when a.label ilike '%nachtragshaushalt%' then 'Gesetz inkl. Nachtragshaushalt'
-    else 'Gesetz'
+    when a.label ~ '^Sollwerte des Haushaltsjahres \d{4}' or a.label ~ '^Haushaltsjahr \d{4} \(Soll\)' then 'Gesetz'
+    -- Unbekannte Labels nicht still als Gesetz werten; DQ-14 meldet sie.
+    else 'unbekannt'
   end as stand,
   coalesce((select max(m[1]::int) from regexp_matches(coalesce(a.label, ''), '(\d+)\. Nachtrag', 'g') as m), 0) as anzahl_nachtraege,
   a.betrag_eur as soll_api_eur,

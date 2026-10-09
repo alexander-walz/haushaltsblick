@@ -36,7 +36,7 @@ unit_tests:
           - {jahr: 2024, konto: ausgaben, stand: Gesetz}
     expect:
       rows:
-        - {titel_key: '041143257', soll_eur: 54926000.00, soll_quelle: api, soll_xml_eur: 54926000.00, ist_eur: 61346498.79, ist_verfuegbar: true, abweichung_eur: 6420498.79, gruppierung_nr: '432', hauptgruppe: '4', haushaltsstand: Gesetz}
-        - {titel_key: '041197201', soll_eur: 0.00, soll_quelle: api, soll_xml_eur: -168000.00, ist_eur: 0.00, ist_verfuegbar: true, abweichung_eur: 0.00, gruppierung_nr: '972', hauptgruppe: '9', haushaltsstand: Gesetz}
-        - {titel_key: '060168421', soll_eur: 1000.00, soll_quelle: xml, soll_xml_eur: 1000.00, ist_eur: null, ist_verfuegbar: false, abweichung_eur: null, gruppierung_nr: '684', hauptgruppe: '6', haushaltsstand: null}
-        - {titel_key: '320159501', soll_eur: 0.00, soll_quelle: xml, soll_xml_eur: null, ist_eur: 8490000000.00, ist_verfuegbar: true, abweichung_eur: 8490000000.00, gruppierung_nr: '595', hauptgruppe: '5', haushaltsstand: null}
+        - {titel_key: '041143257', soll_eur: 54926000.00, soll_quelle: api, soll_xml_eur: 54926000.00, ist_eur: 61346498.79, ist_verfuegbar: true, abweichung_eur: 6420498.79, ist_quote: 1.116894, gruppierung_nr: '432', hauptgruppe: '4', haushaltsstand: Gesetz}
+        - {titel_key: '041197201', soll_eur: 0.00, soll_quelle: api, soll_xml_eur: -168000.00, ist_eur: 0.00, ist_verfuegbar: true, abweichung_eur: 0.00, ist_quote: null, gruppierung_nr: '972', hauptgruppe: '9', haushaltsstand: Gesetz}
+        - {titel_key: '060168421', soll_eur: 1000.00, soll_quelle: xml, soll_xml_eur: 1000.00, ist_eur: null, ist_verfuegbar: false, abweichung_eur: null, ist_quote: null, gruppierung_nr: '684', hauptgruppe: '6', haushaltsstand: null}
+        - {titel_key: '320159501', soll_eur: 0.00, soll_quelle: xml, soll_xml_eur: null, ist_eur: 8490000000.00, ist_verfuegbar: true, abweichung_eur: null, ist_quote: null, gruppierung_nr: '595', hauptgruppe: '5', haushaltsstand: null}

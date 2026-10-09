@@ -13,13 +13,16 @@ WURZEL = Path(__file__).resolve().parent.parent
 def umgebung(url: str) -> dict[str, str]:
     teile = urlparse(url)
     abfrage = parse_qs(teile.query)
+    host = teile.hostname or "127.0.0.1"
+    # Ohne sslmode in der URL: unverschlüsselt nur zur lokalen Datenbank, sonst TLS erzwingen.
+    sslmode_standard = "disable" if host in ("127.0.0.1", "localhost") else "require"
     return {
-        "HB_DB_HOST": teile.hostname or "127.0.0.1",
+        "HB_DB_HOST": host,
         "HB_DB_PORT": str(teile.port or 5432),
         "HB_DB_USER": unquote(teile.username or "postgres"),
         "HB_DB_PASSWORD": unquote(teile.password or ""),
         "HB_DB_NAME": teile.path.lstrip("/") or "postgres",
-        "HB_DB_SSLMODE": abfrage.get("sslmode", ["disable"])[0],
+        "HB_DB_SSLMODE": abfrage.get("sslmode", [sslmode_standard])[0],
     }
 
 

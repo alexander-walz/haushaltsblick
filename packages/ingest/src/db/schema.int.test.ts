@@ -100,13 +100,31 @@ describe('Datenbankschema', () => {
       expect(titel).toEqual({ flexibilisiert: null });
     }));
 
-  it('legt den DQ-Katalog mit 16 Prüfungen an', () =>
+  it('legt den DQ-Katalog mit 18 Prüfungen an', () =>
     imRollback(async (tx) => {
       const rows = await tx<{ check_id: string; schwere: string }[]>`select check_id, schwere from ops.dq_check order by check_id`;
-      expect(rows.map((r) => r.check_id)).toEqual(Array.from({ length: 16 }, (_, i) => `DQ-${String(i + 1).padStart(2, '0')}`));
+      expect(rows.map((r) => r.check_id)).toEqual(Array.from({ length: 18 }, (_, i) => `DQ-${String(i + 1).padStart(2, '0')}`));
       expect(rows.filter((r) => r.schwere === 'error').map((r) => r.check_id)).toEqual([
-        'DQ-01', 'DQ-02', 'DQ-03', 'DQ-07', 'DQ-08', 'DQ-09', 'DQ-13', 'DQ-15', 'DQ-16',
+        'DQ-01', 'DQ-02', 'DQ-03', 'DQ-07', 'DQ-08', 'DQ-09', 'DQ-13', 'DQ-15', 'DQ-16', 'DQ-17',
       ]);
+      const neu = await tx`select check_id, dimension, schwere from ops.dq_check where check_id in ('DQ-17', 'DQ-18') order by check_id`;
+      expect(neu.map((r) => [r.check_id, r.dimension, r.schwere])).toEqual([['DQ-17', 'Vollständigkeit', 'error'], ['DQ-18', 'Betrieb', 'warn']]);
+    }));
+
+  it('entzieht public das Ausführen von Veröffentlichung und Aufräumen', () =>
+    imRollback(async (tx) => {
+      const [z] = await tx`
+        select has_function_privilege('anon', 'ops.veroeffentliche_version(bigint)', 'execute') as veroeffentlichen,
+               has_function_privilege('anon', 'ops.raeume_raw_auf()', 'execute') as aufraeumen`;
+      expect(z).toEqual({ veroeffentlichen: false, aufraeumen: false });
+    }));
+
+  it('ops.dq_lauf protokolliert den dbt-Aufruf', () =>
+    imRollback(async (tx) => {
+      const [z] = await tx`
+        select data_type, is_nullable, column_default from information_schema.columns
+        where table_schema = 'ops' and table_name = 'dq_lauf' and column_name = 'dbt_aufruf'`;
+      expect(z).toEqual({ data_type: 'jsonb', is_nullable: 'NO', column_default: "'{}'::jsonb" });
     }));
 
   it('verweigert anon den Zugriff auf mart und core', () =>

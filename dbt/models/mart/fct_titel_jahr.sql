@@ -31,8 +31,9 @@ zeilen as (
     left(w.titel_nr, 3) as gruppierung_nr, g.gruppierung_text, left(w.titel_nr, 2) as obergruppe, g.obergruppe_text,
     left(w.titel_nr, 1) as hauptgruppe, g.hauptgruppe_text,
     w.soll_eur, w.soll_quelle, w.soll_xml_eur, w.ist_eur, w.ist_verfuegbar,
-    (w.ist_eur - w.soll_eur)::numeric(18,2) as abweichung_eur,
-    round(w.ist_eur / nullif(w.soll_eur, 0), 6) as ist_quote,
+    -- Nie XML-Soll gegen API-Ist vergleichen: Abweichung und Quote nur bei Soll aus der API (DQ-17 sichert das API-Soll ab).
+    (case when w.soll_quelle = 'api' then w.ist_eur - w.soll_eur end)::numeric(18,2) as abweichung_eur,
+    case when w.soll_quelle = 'api' then round(w.ist_eur / nullif(w.soll_eur, 0), 6) end as ist_quote,
     h.stand as haushaltsstand,
     w.im_haushaltsplan_xml
   from werte w
