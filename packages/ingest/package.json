@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "tsx src/bin.ts",
+    "api": "tsx src/bin-api.ts",
     "test": "vitest run --project unit",
     "test:int": "vitest run --project integration",
     "typecheck": "tsc --noEmit -p ."
