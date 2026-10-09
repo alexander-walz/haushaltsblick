@@ -92,14 +92,8 @@ jobs:
           pnpm --silent dbt seed
           pnpm --silent dbt run
           pnpm --silent dbt test
-      - name: Ampel und Veröffentlichung
-        id: veroeffentlichung
-        if: always() && steps.migration.outcome == 'success'
-        continue-on-error: true
-        env:
-          DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
-        run: pnpm --silent --filter @hb/ingest veroeffentliche | tee -a bericht.md
       - name: Rohdaten im Release ablegen
+        id: upload
         if: always()
         env:
           GH_TOKEN: ${{ github.token }}
@@ -110,12 +104,30 @@ jobs:
           gh release view rohdaten >/dev/null 2>&1 || gh release create rohdaten --title "Rohdaten" \
             --notes "Unveränderte Rohdaten der Quellen, gzip-komprimiert. Datenquelle: Bundesministerium der Finanzen, bundeshaushalt.de. Rechtlich verbindlich ist ausschließlich der veröffentlichte Haushaltsplan."
           gh release upload rohdaten "${dateien[@]}" --clobber
+      - name: Ampel und Veröffentlichung
+        id: veroeffentlichung
+        if: always() && steps.migration.outcome == 'success'
+        continue-on-error: true
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: pnpm --silent --filter @hb/ingest veroeffentliche --ohne-aufraeumen | tee -a bericht.md
+      - name: Rohdaten aufräumen
+        id: aufraeumen
+        # Erst nach erfolgreichem Archiv-Upload und erfolgreicher Veröffentlichung; sonst bleiben die Rohdaten in raw.
+        if: steps.upload.outcome == 'success' && steps.veroeffentlichung.outcome == 'success'
+        continue-on-error: true
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: pnpm --silent --filter @hb/ingest raeume-auf | tee -a bericht.md
       - name: Bericht
         if: always()
         run: |
           if [ -f bericht.md ]; then { echo "## Ingest"; echo; cat bericht.md; } >> "$GITHUB_STEP_SUMMARY"; fi
       - name: Ergebnis
-        if: steps.soll.outcome == 'failure' || steps.ist.outcome == 'failure' || steps.sollapi.outcome == 'failure' || steps.systematik.outcome == 'failure' || steps.veroeffentlichung.outcome == 'failure'
+        if: >-
+          steps.soll.outcome == 'failure' || steps.ist.outcome == 'failure' || steps.sollapi.outcome == 'failure' ||
+          steps.systematik.outcome == 'failure' || steps.dbt.outcome == 'failure' ||
+          steps.veroeffentlichung.outcome == 'failure' || steps.aufraeumen.outcome == 'failure'
         run: |
           echo "Mindestens ein Ingest-Schritt ist fehlgeschlagen oder in Quarantäne. Siehe Bericht und docs/betrieb.md."
           exit 1
