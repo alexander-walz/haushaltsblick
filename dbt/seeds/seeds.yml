@@ -1,0 +1,10 @@
+version: 2
+seeds:
+  - name: kontrollsummen
+    config:
+      column_types:
+        jahr: integer
+        konto: text
+        wertart: text
+        betrag_eur: numeric(18,2)
+        quelle: text

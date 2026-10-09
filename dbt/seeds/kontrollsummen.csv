@@ -1,0 +1,5 @@
+jahr,konto,wertart,betrag_eur,quelle
+2024,ausgaben,ist,474753727609.58,internalapi Ist 2024 Ausgaben (Abruf 08.10.2026)
+2024,einnahmen,ist,474753727609.58,internalapi Ist 2024 Einnahmen (Abruf 08.10.2026)
+2026,ausgaben,soll,524540138000.00,Haushaltsplan 2026 ohne Anlagen = internalapi Soll 2026
+2026,einnahmen,soll,524540138000.00,Haushaltsplan 2026 ohne Anlagen = internalapi Soll 2026

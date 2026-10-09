@@ -1,0 +1,10 @@
+{{ config(severity='error', meta={'dq_id': 'DQ-01'}) }}
+-- Nur Jahre, in denen XML und API denselben Stand zeigen
+with gleich as (select jahr, konto from {{ ref('dim_haushaltsstand') }} where differenz_xml_api_eur = 0)
+select k.jahr, k.konto, k.knoten_id as einzelplan_nr
+from {{ ref('stg_api_knoten') }} k
+join gleich g on g.jahr = k.jahr and g.konto = k.konto
+where k.ebene = 'einzelplan' and k.quote = 'soll'
+  and not exists (
+    select 1 from {{ ref('stg_soll_titel') }} t
+    where t.jahr = k.jahr and t.konto = k.konto and t.einzelplan_nr = k.knoten_id and not t.ist_anlage)
