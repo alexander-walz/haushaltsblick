@@ -32,7 +32,7 @@ Geplante Workflows laufen nur auf dem Standard-Branch `main`.
 | DQ-16 rot | Mart-Summen weichen von der API-Wurzel ab, Transformation fehlerhaft | dbt-Modelle prüfen (`dbt/models`), Befund in `ops.dq_ergebnis.details` lesen; die bisherige Version bleibt aktiv |
 | DQ-13 rot | Ist eines abgeschlossenen Jahres fehlt in einem Konto | Lauf mit `neu_laden` für das Jahr starten |
 | DQ-14 gelb | XML- und API-Soll unterscheiden sich ohne Nachtrag oder Entwurf, oder das Stand-Label der API ist unbekannt (`stand = 'unbekannt'`) | Befund prüfen; bei neuem Label `dim_haushaltsstand.sql` ergänzen; kein Blocker, die Veröffentlichung läuft weiter |
-| DQ-17 rot | API-Soll fehlt für ein Jahr und Konto mit Ist oder für ein Jahr bis zum Folgejahr | Lauf `api --quote soll` mit `neu_laden` für das Jahr starten; ohne API-Soll werden Abweichung und Ist-Quote nie aus dem XML-Soll berechnet |
+| DQ-17 rot | API-Soll fehlt für ein Jahr und Konto mit Ist oder für ein Jahr bis zum laufenden Jahr | Lauf `api --quote soll` mit `neu_laden` für das Jahr starten; ohne API-Soll werden Abweichung und Ist-Quote nie aus dem XML-Soll berechnet |
 | DQ-18 gelb | Datenbank größer als 400 MB (Supabase Free: 500 MB) | Abschnitt „Speicherbudget“ befolgen |
 | „nicht veröffentlicht: dbt mit --vars ausgeführt (Testlauf)“ | dbt lief mit gelockerten Prüfungen (`--vars`) | im Workflow nicht vorgesehen; lokal bewusst mit `--testlauf` veröffentlichen |
 | Schritt „Rohdaten aufräumen“ übersprungen | Archiv-Upload oder Veröffentlichung nicht erfolgreich | nichts tun; `raw` bleibt vollständig, der nächste erfolgreiche Lauf räumt auf |
@@ -60,7 +60,7 @@ Nach den Ingest-Schritten laufen `dbt seed`, `dbt run` und `dbt test` (getrennt,
 | DQ-14 | Abgleich | Unterschied XML- zu API-Soll nur bei Nachtrag oder Entwurf | warn |
 | DQ-15 | Abgleich | API-Ist: Einnahmen gleich Ausgaben je Jahr | error |
 | DQ-16 | Konsistenz | Mart-Summen je Jahr und Konto gleich der API-Wurzel (Soll und Ist) | error |
-| DQ-17 | Vollständigkeit | API-Soll für jedes Jahr und Konto mit Ist sowie für alle Jahre ab dq13_ab_jahr bis Folgejahr geladen | error |
+| DQ-17 | Vollständigkeit | API-Soll für jedes Jahr und Konto mit Ist sowie für alle Jahre ab dq13_ab_jahr bis zum laufenden Jahr geladen | error |
 | DQ-18 | Betrieb | Datenbankgröße unter 400 MB (Supabase Free: 500 MB) | warn |
 
 Ampel: grün (alle Prüfungen bestanden), gelb (nur Warnungen), rot (mindestens eine Fehler-Prüfung fehlgeschlagen). Eine rote Ampel wird nie veröffentlicht, die bisherige Version bleibt aktiv.

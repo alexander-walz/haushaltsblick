@@ -3,7 +3,7 @@
 -- DQ-17: XML-Soll wird nie gegen API-Ist verglichen; dafür muss das API-Soll vollständig sein.
 -- DQ-18: Speicherbudget der Datenbank (Supabase Free: 500 MB).
 insert into ops.dq_check values
-  ('DQ-17', 'Vollständigkeit', 'API-Soll für jedes Jahr und Konto mit Ist sowie für alle Jahre ab dq13_ab_jahr bis Folgejahr geladen', 'error'),
+  ('DQ-17', 'Vollständigkeit', 'API-Soll für jedes Jahr und Konto mit Ist sowie für alle Jahre ab dq13_ab_jahr bis zum laufenden Jahr geladen', 'error'),
   ('DQ-18', 'Betrieb', 'Datenbankgröße unter 400 MB (Supabase Free: 500 MB)', 'warn');
 
 -- Wie dbt aufgerufen wurde (args aus run_results.json und invocation_id); gesetzte vars kennzeichnen Testläufe.
