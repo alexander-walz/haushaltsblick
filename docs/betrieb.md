@@ -5,7 +5,7 @@
 | Workflow | Auslöser | Aufgabe |
 | --- | --- | --- |
 | `ci` | Pull Request, Push auf `main` | Typecheck, Unit- und Integrationstests |
-| `ingest` | montags 04:17 UTC, manuell | Migrationen, Soll (XML und internalapi), Ist, Systematik, dbt (Seeds, Modelle, Tests), Ampel und Veröffentlichung, Rohdaten ins Release `rohdaten` |
+| `ingest` | montags 04:17 UTC, manuell | Migrationen, Soll (XML und internalapi), Ist, Systematik, dbt (Seeds, Modelle, Tests), Rohdaten ins Release `rohdaten`, Ampel und Veröffentlichung, Rohdaten in `raw` aufräumen |
 | `keepalive` | täglich 05:42 UTC, manuell | eine Abfrage, damit Supabase Free nicht nach 7 Tagen pausiert |
 
 `ingest` und `keepalive` laufen nur, wenn die Repository-Variable `HB_INGEST_AKTIV` den Wert `true` hat.
@@ -31,12 +31,16 @@ Geplante Workflows laufen nur auf dem Standard-Branch `main`.
 | Rohdaten-Upload fehlgeschlagen | Release `rohdaten` nicht beschreibbar oder GitHub gestört | betroffene Jahre mit `neu_laden` erneut laufen lassen (Archivnamen sind inhaltsbasiert, nichts wird überschrieben) |
 | DQ-16 rot | Mart-Summen weichen von der API-Wurzel ab, Transformation fehlerhaft | dbt-Modelle prüfen (`dbt/models`), Befund in `ops.dq_ergebnis.details` lesen; die bisherige Version bleibt aktiv |
 | DQ-13 rot | Ist eines abgeschlossenen Jahres fehlt in einem Konto | Lauf mit `neu_laden` für das Jahr starten |
-| DQ-14 gelb | XML- und API-Soll unterscheiden sich ohne Nachtrag oder Entwurf | Befund prüfen; kein Blocker, die Veröffentlichung läuft weiter |
+| DQ-14 gelb | XML- und API-Soll unterscheiden sich ohne Nachtrag oder Entwurf, oder das Stand-Label der API ist unbekannt (`stand = 'unbekannt'`) | Befund prüfen; bei neuem Label `dim_haushaltsstand.sql` ergänzen; kein Blocker, die Veröffentlichung läuft weiter |
+| DQ-17 rot | API-Soll fehlt für ein Jahr und Konto mit Ist oder für ein Jahr bis zum Folgejahr | Lauf `api --quote soll` mit `neu_laden` für das Jahr starten; ohne API-Soll werden Abweichung und Ist-Quote nie aus dem XML-Soll berechnet |
+| DQ-18 gelb | Datenbank größer als 400 MB (Supabase Free: 500 MB) | Abschnitt „Speicherbudget“ befolgen |
+| „nicht veröffentlicht: dbt mit --vars ausgeführt (Testlauf)“ | dbt lief mit gelockerten Prüfungen (`--vars`) | im Workflow nicht vorgesehen; lokal bewusst mit `--testlauf` veröffentlichen |
+| Schritt „Rohdaten aufräumen“ übersprungen | Archiv-Upload oder Veröffentlichung nicht erfolgreich | nichts tun; `raw` bleibt vollständig, der nächste erfolgreiche Lauf räumt auf |
 | Warnungen „Unbekanntes Feld …“ | API liefert neue Felder | kein Handlungsbedarf, beim nächsten Schema-Update aufnehmen |
 
 ## Datenqualität und Veröffentlichung
 
-Nach den Ingest-Schritten laufen `dbt seed`, `dbt run` und `dbt test` (getrennt, damit ein fehlgeschlagener Test die übrigen Prüfungen nicht überspringt). Der Schritt „Ampel und Veröffentlichung“ liest `dbt/target/run_results.json`, speichert die Ergebnisse in `ops.dq_lauf` und `ops.dq_ergebnis` und bewertet die Ampel.
+Nach den Ingest-Schritten laufen `dbt seed`, `dbt run` und `dbt test` (getrennt, damit ein fehlgeschlagener Test die übrigen Prüfungen nicht überspringt). Danach werden die Rohdaten im Release `rohdaten` abgelegt. Der Schritt „Ampel und Veröffentlichung“ liest `dbt/target/run_results.json`, speichert die Ergebnisse in `ops.dq_lauf` und `ops.dq_ergebnis`, den dbt-Aufruf (`args` mit `vars`, `select`, `exclude`, `which` sowie `invocation_id`) in `ops.dq_lauf.dbt_aufruf` und bewertet die Ampel. Für die Ampel zählt die Schwere aus dem Katalog `ops.dq_check`; weicht die Schwere eines dbt-Tests davon ab, schlägt die Prüfung fehl.
 
 | ID | Kategorie | Prüfung | Schwere |
 | --- | --- | --- | --- |
@@ -56,6 +60,8 @@ Nach den Ingest-Schritten laufen `dbt seed`, `dbt run` und `dbt test` (getrennt,
 | DQ-14 | Abgleich | Unterschied XML- zu API-Soll nur bei Nachtrag oder Entwurf | warn |
 | DQ-15 | Abgleich | API-Ist: Einnahmen gleich Ausgaben je Jahr | error |
 | DQ-16 | Konsistenz | Mart-Summen je Jahr und Konto gleich der API-Wurzel (Soll und Ist) | error |
+| DQ-17 | Vollständigkeit | API-Soll für jedes Jahr und Konto mit Ist sowie für alle Jahre ab dq13_ab_jahr bis Folgejahr geladen | error |
+| DQ-18 | Betrieb | Datenbankgröße unter 400 MB (Supabase Free: 500 MB) | warn |
 
 Ampel: grün (alle Prüfungen bestanden), gelb (nur Warnungen), rot (mindestens eine Fehler-Prüfung fehlgeschlagen). Eine rote Ampel wird nie veröffentlicht, die bisherige Version bleibt aktiv.
 
@@ -69,16 +75,26 @@ select check_id, status, details from ops.dq_ergebnis where dq_lauf_id = (select
 ### Lokale Nutzung
 
 ```bash
-uv venv
+uv venv .venv --python 3.13 && uv pip install --python .venv -r dbt/requirements.txt
 pnpm dbt seed && pnpm dbt run && pnpm dbt test --vars '{dq13_ab_jahr: <jahr>}'
-pnpm --filter @hb/ingest veroeffentliche
+pnpm --filter @hb/ingest veroeffentliche --testlauf --ohne-aufraeumen
 ```
 
-`dq13_ab_jahr` begrenzt DQ-13 bei unvollständigen lokalen Daten auf Jahre ab `<jahr>`.
+`dq13_ab_jahr` begrenzt DQ-13 und DQ-17 bei unvollständigen lokalen Daten auf Jahre ab `<jahr>`. Ein dbt-Lauf mit `--vars` ist ein Testlauf: `veroeffentliche` speichert dann nur den DQ-Lauf, veröffentlicht nicht und endet mit 1 („nicht veröffentlicht: dbt mit --vars ausgeführt (Testlauf)“). Mit `--testlauf` wird trotzdem veröffentlicht; der Bericht nennt dann „Testlauf (vars: …)“, und `ops.dq_lauf.dbt_aufruf` hält die vars fest. `--ohne-aufraeumen` lässt `raw` unverändert; `pnpm --filter @hb/ingest raeume-auf` räumt separat auf.
+
+Der erste Ingest-Lauf nach einem Wechsel der `pipeline_version` lädt alle Jahre neu und dauert etwa 2,5 Stunden.
 
 ## Aufräumen
 
-Nach jeder Veröffentlichung bleiben in `raw` nur die maßgeblichen Läufe; ältere Rohdaten liegen weiterhin im Release `rohdaten`.
+Der Schritt „Rohdaten aufräumen“ (`pnpm --filter @hb/ingest raeume-auf`) läuft nur, wenn sowohl der Archiv-Upload ins Release `rohdaten` als auch die Veröffentlichung erfolgreich waren. Danach bleiben in `raw` nur die maßgeblichen Läufe; ältere Rohdaten liegen weiterhin im Release `rohdaten`. Die Veröffentlichung selbst läuft im Workflow mit `--ohne-aufraeumen`, damit nie Rohdaten gelöscht werden, deren Archiv noch nicht hochgeladen ist.
+
+## Speicherbudget
+
+Supabase Free erlaubt 500 MB; DQ-18 warnt ab 400 MB.
+
+- Vor dem ersten Lauf nach diesem Update die Datenbankgröße im Supabase-Dashboard prüfen (Project → Database → Database size oder `select pg_size_pretty(pg_database_size(current_database()));` im SQL-Editor).
+- Nach dem ersten Aufräumen im SQL-Editor `vacuum full raw.soll_titel; vacuum full raw.api_titel;` ausführen. Gelöschte Zeilen geben den Platz sonst nicht an das Dateisystem zurück, und die Größe sinkt nicht.
+- Jede Schemaänderung von `mart.fct_titel_jahr`, die alle Zeilen ändert (neue Spalte, geänderte Berechnung), lässt die Historie `mart.fct_titel_jahr_hist` einmalig um eine volle Version wachsen (etwa 70 MB).
 
 ## Unbeaufsichtigter Betrieb
 
@@ -87,7 +103,7 @@ Eine GitHub-Benachrichtigung kündigt die Deaktivierung an.
 
 Wiederherstellen: GitHub → Actions → Workflow → „Enable workflow“, danach `keepalive` und `ingest` einmal manuell starten.
 
-Nach einer Erhöhung der `pipeline_version` lädt der nächste Lauf alle Jahre automatisch neu (auch bei unverändertem Stand der Quelle). Die Dauer entspricht dem Erstlauf.
+Nach einer Erhöhung der `pipeline_version` lädt der nächste Lauf alle Jahre automatisch neu (auch bei unverändertem Stand der Quelle). Die Dauer entspricht dem Erstlauf (etwa 2,5 Stunden).
 
 ## Rohdaten
 
