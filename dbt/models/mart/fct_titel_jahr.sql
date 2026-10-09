@@ -11,8 +11,8 @@ with betraege as (
 werte as (
   select
     t.*,
-    case when v.soll_api_geladen then coalesce(b.soll_api, 0) else b.soll_xml end::numeric(18,2) as soll_eur,
-    case when v.soll_api_geladen then 'api' else 'xml' end as soll_quelle,
+    case when v.soll_api_geladen then coalesce(b.soll_api, 0) when v.xml_geladen then coalesce(b.soll_xml, 0) end::numeric(18,2) as soll_eur,
+    case when v.soll_api_geladen then 'api' when v.xml_geladen then 'xml' end as soll_quelle,
     b.soll_xml::numeric(18,2) as soll_xml_eur,
     case when v.ist_geladen then coalesce(b.ist, 0) end::numeric(18,2) as ist_eur,
     v.ist_geladen as ist_verfuegbar

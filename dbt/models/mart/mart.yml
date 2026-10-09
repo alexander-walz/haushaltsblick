@@ -9,10 +9,12 @@ unit_tests:
           - {jahr: 2024, konto: ausgaben, titel_key: '041143257', einzelplan_nr: '04', kapitel_nr: '0411', titel_nr: '43257', titel_text: 'Versorgungsbezüge', fkt: '018', im_haushaltsplan_xml: true}
           - {jahr: 2024, konto: ausgaben, titel_key: '041197201', einzelplan_nr: '04', kapitel_nr: '0411', titel_nr: '97201', titel_text: 'GMA', fkt: '880', im_haushaltsplan_xml: true}
           - {jahr: 2020, konto: ausgaben, titel_key: '060168421', einzelplan_nr: '06', kapitel_nr: '0601', titel_nr: '68421', titel_text: 'Sport', fkt: '322', im_haushaltsplan_xml: true}
+          - {jahr: 2019, konto: ausgaben, titel_key: '320159501', einzelplan_nr: '32', kapitel_nr: '3201', titel_nr: '59501', titel_text: 'Ungeplant', fkt: '011', im_haushaltsplan_xml: false}
       - input: ref('dim_verfuegbarkeit')
         rows:
           - {jahr: 2024, konto: ausgaben, soll_api_geladen: true, ist_geladen: true, xml_geladen: true}
           - {jahr: 2020, konto: ausgaben, soll_api_geladen: false, ist_geladen: false, xml_geladen: true}
+          - {jahr: 2019, konto: ausgaben, soll_api_geladen: false, ist_geladen: true, xml_geladen: true}
       - input: ref('fct_betrag')
         rows:
           - {jahr: 2024, konto: ausgaben, titel_key: '041143257', wertart: soll, betrag_eur: 54926000.00}
@@ -20,6 +22,7 @@ unit_tests:
           - {jahr: 2024, konto: ausgaben, titel_key: '041143257', wertart: soll_xml, betrag_eur: 54926000.00}
           - {jahr: 2024, konto: ausgaben, titel_key: '041197201', wertart: soll_xml, betrag_eur: -168000.00}
           - {jahr: 2020, konto: ausgaben, titel_key: '060168421', wertart: soll_xml, betrag_eur: 1000.00}
+          - {jahr: 2019, konto: ausgaben, titel_key: '320159501', wertart: ist, betrag_eur: 8490000000.00}
       - input: ref('dim_einzelplan')
         rows: []
       - input: ref('dim_kapitel')
@@ -36,3 +39,4 @@ unit_tests:
         - {titel_key: '041143257', soll_eur: 54926000.00, soll_quelle: api, soll_xml_eur: 54926000.00, ist_eur: 61346498.79, ist_verfuegbar: true, abweichung_eur: 6420498.79, gruppierung_nr: '432', hauptgruppe: '4', haushaltsstand: Gesetz}
         - {titel_key: '041197201', soll_eur: 0.00, soll_quelle: api, soll_xml_eur: -168000.00, ist_eur: 0.00, ist_verfuegbar: true, abweichung_eur: 0.00, gruppierung_nr: '972', hauptgruppe: '9', haushaltsstand: Gesetz}
         - {titel_key: '060168421', soll_eur: 1000.00, soll_quelle: xml, soll_xml_eur: 1000.00, ist_eur: null, ist_verfuegbar: false, abweichung_eur: null, gruppierung_nr: '684', hauptgruppe: '6', haushaltsstand: null}
+        - {titel_key: '320159501', soll_eur: 0.00, soll_quelle: xml, soll_xml_eur: null, ist_eur: 8490000000.00, ist_verfuegbar: true, abweichung_eur: 8490000000.00, gruppierung_nr: '595', hauptgruppe: '5', haushaltsstand: null}
