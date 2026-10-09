@@ -48,7 +48,7 @@ describe('Laden der API-Crawls', () => {
       await lauf(tx, 'succeeded', 1000);
       await lauf(tx, 'succeeded', 2000);
       await lauf(tx, 'quarantined', 3000);
-      expect(await letzterApiStand(tx, P)).toEqual({ quelleTimestamp: 2000 });
+      expect(await letzterApiStand(tx, P)).toEqual({ quelleTimestamp: 2000, pipelineVersion: '0.2.0' });
       expect(await letzterApiStand(tx, { ...P, konto: 'einnahmen' })).toBeNull();
       expect(await letzterApiStand(tx, { ...P, quote: 'soll' })).toBeNull();
     }));

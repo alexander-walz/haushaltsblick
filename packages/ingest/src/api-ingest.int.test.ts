@@ -34,7 +34,9 @@ describe('ladeApiJahr', () => {
       expect(await laufStatus(tx, e.runId)).toEqual({ status: 'succeeded', rows_loaded: 2, error: null });
       expect(await zeilen(tx, e.runId)).toEqual({ titel: 2, knoten: 4, abrufe: 1 });
       const [archiv] = readdirSync(opt.archiv.verzeichnis);
-      expect(archiv).toBe('api_ist_1999_ausgaben_111.ndjson.gz');
+      expect(archiv).toMatch(/^api_ist_1999_ausgaben_111_[0-9a-f]{16}\.ndjson\.gz$/);
+      const [abrufZeile] = await tx<{ sha256: string }[]>`select sha256 from raw.api_abruf where run_id = ${e.runId}`;
+      expect(archiv).toBe(`api_ist_1999_ausgaben_111_${abrufZeile!.sha256.slice(0, 16)}.ndjson.gz`);
       const ndjson = gunzipSync(readFileSync(join(opt.archiv.verzeichnis, archiv!))).toString('utf8').trim().split('\n');
       expect(ndjson.map((z) => (JSON.parse(z) as { url: string }).url)).toEqual(abruf.aufrufe);
     }));
@@ -48,6 +50,17 @@ describe('ladeApiJahr', () => {
       expect(e).toMatchObject({ status: 'skipped', hinweis: 'unverändert', anfragen: 1 });
       expect(zweiter.aufrufe).toEqual([apiUrl(P)]);
       expect(await zeilen(tx, e.runId)).toEqual({ titel: 0, knoten: 0, abrufe: 0 });
+    }));
+
+  it('lädt bei geänderter pipeline_version trotz unverändertem Stand vollständig', () =>
+    imRollback(async (tx) => {
+      const baum = baueBaum(P, PLAN, 777);
+      await ladeApiJahr(tx, P, optionen(fakeAbruf(baum), { pipelineVersion: '0.1.0' }));
+      const e = await ladeApiJahr(tx, P, optionen(fakeAbruf(baum), { pipelineVersion: '0.2.0' }));
+      expect(e).toMatchObject({ status: 'succeeded', anfragen: 4 });
+      await tx`update ops.load_run set started_at = started_at + interval '1 second' where run_id = ${e.runId}`;
+      const dritter = await ladeApiJahr(tx, P, optionen(fakeAbruf(baum), { pipelineVersion: '0.2.0' }));
+      expect(dritter).toMatchObject({ status: 'skipped', hinweis: 'unverändert' });
     }));
 
   it('lädt mit neuLaden trotz unverändertem Stand vollständig', () =>

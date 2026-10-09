@@ -72,6 +72,9 @@ export async function crawle(p: ApiParameter, abruf: ApiAbruf, wurzel: Extract<W
       throw new ApiVertragsFehler(`Summe der Kinder ${centZuDezimal(kinderCent)} weicht vom Knoten ${centZuDezimal(knotenCent)} ab`, url);
     }
   };
+  const pruefeKnotenId = (a: ApiAntwort, id: string, url: string) => {
+    if (a.detail.id !== id) throw new ApiVertragsFehler(`Antwort gehört zu Knoten ${a.detail.id ?? '(ohne ID)'} statt ${id}`, url);
+  };
   const pruefeElternwert = (ebene: string, id: string, eigenCent: number, elternCent: number, url: string) => {
     if (eigenCent !== elternCent) {
       throw new ApiVertragsFehler(`${ebene} ${id}: Wert ${centZuDezimal(eigenCent)} weicht vom Elternknoten ${centZuDezimal(elternCent)} ab`, url);
@@ -95,6 +98,7 @@ export async function crawle(p: ApiParameter, abruf: ApiAbruf, wurzel: Extract<W
     if (!/^\d{2}$/.test(ep.id)) throw new ApiVertragsFehler(`Einzelplan-ID ungültig: ${ep.id}`, wurzel.url);
     const { url: epUrl, a: epA } = await holeKnoten(ep.id);
     pruefeAntwort(epA, epUrl, 1);
+    pruefeKnotenId(epA, ep.id, epUrl);
     pruefeElternwert('Einzelplan', ep.id, zuCent(epA.detail.value), zuCent(ep.value), epUrl);
     knoten.push({ ebene: 'einzelplan', knotenId: ep.id, label: ep.label, betragCent: zuCent(ep.value) });
 
@@ -102,6 +106,7 @@ export async function crawle(p: ApiParameter, abruf: ApiAbruf, wurzel: Extract<W
       if (!/^\d{4}$/.test(kap.id) || !kap.id.startsWith(ep.id)) throw new ApiVertragsFehler(`Kapitel-ID ungültig: ${kap.id}`, epUrl);
       const { url: kapUrl, a: kapA } = await holeKnoten(kap.id);
       pruefeAntwort(kapA, kapUrl, 2);
+      pruefeKnotenId(kapA, kap.id, kapUrl);
       pruefeElternwert('Kapitel', kap.id, zuCent(kapA.detail.value), zuCent(kap.value), kapUrl);
       knoten.push({ ebene: 'kapitel', knotenId: kap.id, label: kap.label, betragCent: zuCent(kap.value) });
 
@@ -135,6 +140,8 @@ export function netzAbruf(opt: { userAgent: string; drossel: Drossel; http?: Par
     const antwort = await holeMitWiederholung(url, { ...opt.http, userAgent: opt.userAgent });
     if (antwort.status === 404) return { status: 404 };
     if (antwort.status !== 200) throw new Error(`Unerwarteter Status ${antwort.status} für ${url}`);
+    const contentType = antwort.headers.get('content-type') ?? '';
+    if (!/json/i.test(contentType)) throw new Error(`Antwort ist kein JSON (Content-Type: ${contentType || 'fehlt'}) bei ${url}`);
     let json: unknown;
     try {
       json = JSON.parse(antwort.inhalt.toString('utf8'));

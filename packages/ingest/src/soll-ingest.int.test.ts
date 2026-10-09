@@ -83,6 +83,22 @@ describe('ladeSollJahr', () => {
       expect(zweiter).toMatchObject({ status: 'skipped', hinweis: 'unverändert' });
     }));
 
+  it('lädt bei geänderter pipeline_version trotz gleichem Inhalt neu und ruft ohne ETag ab', () =>
+    imRollback(async (tx) => {
+      const etag = `"e-${randomUUID()}"`;
+      const inhalt = einmaligerInhalt();
+      const abruf = vi.fn(async (_jahr: number, _opt: AbrufOptionen): Promise<AbrufErgebnis> => neu(inhalt, etag));
+      await ladeSollJahr(tx, 2026, optionen({ abruf, pipelineVersion: '0.1.0' }));
+      const zweiter = await ladeSollJahr(tx, 2026, optionen({ abruf, pipelineVersion: '0.2.0' }));
+      expect(abruf.mock.calls[1]![1].etag).toBeNull();
+      expect(zweiter.status).toBe('succeeded');
+      await tx`update ops.load_run set started_at = started_at + interval '1 second' where run_id = ${zweiter.runId}`;
+      await tx`update raw.source_file set fetched_at = fetched_at + interval '1 second' where run_id = ${zweiter.runId}`;
+      const dritter = await ladeSollJahr(tx, 2026, optionen({ abruf, pipelineVersion: '0.2.0' }));
+      expect(abruf.mock.calls[2]![1]).toMatchObject({ etag });
+      expect(dritter).toMatchObject({ status: 'skipped', hinweis: 'unverändert' });
+    }));
+
   it('gibt den ETag eines Dateilaufs nicht an Netzabrufe weiter', () =>
     imRollback(async (tx) => {
       const lokal = await ladeSollJahr(tx, 2026, optionen({ lokaleDatei: einmaligeDatei() }));

@@ -9,15 +9,15 @@ function* stuecke<T>(werte: readonly T[], groesse: number): Generator<T[]> {
   for (let i = 0; i < werte.length; i += groesse) yield werte.slice(i, i + groesse);
 }
 
-/** Stand der Quelle (meta.timestamp der Wurzel) des letzten erfolgreichen Laufs für Jahr, Konto und Quote. */
-export async function letzterApiStand(sql: Sql, p: ApiParameter): Promise<{ quelleTimestamp: number } | null> {
-  const [zeile] = await sql<{ quelle_timestamp: string }[]>`
-    select a.quelle_timestamp
+/** Stand der Quelle (meta.timestamp der Wurzel) und Pipeline-Version des letzten erfolgreichen Laufs für Jahr, Konto und Quote. */
+export async function letzterApiStand(sql: Sql, p: ApiParameter): Promise<{ quelleTimestamp: number; pipelineVersion: string } | null> {
+  const [zeile] = await sql<{ quelle_timestamp: string; pipeline_version: string }[]>`
+    select a.quelle_timestamp, l.pipeline_version
     from raw.api_abruf a join ops.load_run l using (run_id)
     where a.jahr = ${p.jahr} and a.konto = ${p.konto} and a.quote = ${p.quote} and l.status = 'succeeded'
     order by l.started_at desc, a.quelle_timestamp desc
     limit 1`;
-  return zeile ? { quelleTimestamp: Number(zeile.quelle_timestamp) } : null;
+  return zeile ? { quelleTimestamp: Number(zeile.quelle_timestamp), pipelineVersion: zeile.pipeline_version } : null;
 }
 
 export async function speichereApiCrawl(

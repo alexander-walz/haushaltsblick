@@ -2,7 +2,8 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { ApiVertragsFehler, pruefeApiAntwort } from './schema';
-import { apiUrl, centZuDezimal, crawle, holeWurzel, zuCent, type ApiParameter } from './crawler';
+import { apiUrl, centZuDezimal, crawle, holeWurzel, netzAbruf, zuCent, type ApiParameter } from './crawler';
+import { Drossel } from '../abruf/http';
 import { baueBaum, fakeAbruf, type BaumPlan } from './test-baum';
 
 const P: ApiParameter = { jahr: 2024, konto: 'ausgaben', quote: 'ist' };
@@ -102,6 +103,15 @@ describe('crawle', () => {
     await expect(vollerCrawl(baum)).rejects.toThrow(/Antwort passt nicht zur Anfrage/);
   });
 
+  it('prüft, dass die Antwort zum angefragten Knoten gehört', async () => {
+    const kapitelBaum = baueBaum(P, PLAN);
+    (kapitelBaum.get(apiUrl(P, '0416')) as { detail: { id: string } }).detail.id = '0411';
+    await expect(vollerCrawl(kapitelBaum)).rejects.toThrow(/Antwort gehört zu Knoten 0411 statt 0416/);
+    const epBaum = baueBaum(P, PLAN);
+    (epBaum.get(apiUrl(P, '04')) as { detail: { id: string } }).detail.id = '06';
+    await expect(vollerCrawl(epBaum)).rejects.toThrow(ApiVertragsFehler);
+  });
+
   it('prüft das Format der budgetNumber und die Zugehörigkeit des Titels zum Kapitel', async () => {
     const baum = baueBaum(P, PLAN);
     const kap = baum.get(apiUrl(P, '0416')) as { children: { budgetNumber: string }[] };
@@ -131,4 +141,49 @@ describe('echte Antworten', () => {
       expect(antwort.children.reduce((s, k) => s + zuCent(k.value), 0)).toBe(zuCent(antwort.detail.value));
     },
   );
+});
+
+describe('netzAbruf', () => {
+  const antwort = (status: number, inhalt: string, contentType?: string) =>
+    new Response(inhalt, { status, headers: contentType ? { 'content-type': contentType } : {} });
+  const baue = (fetchImpl: typeof fetch) => {
+    const ereignisse: string[] = [];
+    const drossel = new Drossel(500, { jetzt: () => 0, warte: async () => undefined });
+    const original = drossel.warteAufSlot.bind(drossel);
+    drossel.warteAufSlot = async () => { ereignisse.push('drossel'); await original(); };
+    const wrapper = (async (...args: Parameters<typeof fetch>) => { ereignisse.push('fetch'); return fetchImpl(...args); }) as typeof fetch;
+    return { ereignisse, abruf: netzAbruf({ userAgent: 'Test/1', drossel, http: { fetchImpl: wrapper, wartezeitenMs: [] } }) };
+  };
+  const URL_ = 'https://www.bundeshaushalt.de/internalapi/budgetData?x=1';
+
+  it('liefert JSON-Antworten mit Rohbytes', async () => {
+    const { abruf } = baue(async () => antwort(200, '{"a":1}', 'application/json;charset=UTF-8'));
+    const r = await abruf(URL_);
+    expect(r).toMatchObject({ status: 200, json: { a: 1 } });
+  });
+
+  it('behandelt eine Wartungsseite (text/html) als vorübergehenden Fehler, nicht als Vertragsbruch', async () => {
+    const { abruf } = baue(async () => antwort(200, '<html>Wartung</html>', 'text/html; charset=utf-8'));
+    const fehler = await abruf(URL_).catch((e: unknown) => e);
+    expect(fehler).toBeInstanceOf(Error);
+    expect(fehler).not.toBeInstanceOf(ApiVertragsFehler);
+    expect((fehler as Error).message).toBe(`Antwort ist kein JSON (Content-Type: text/html; charset=utf-8) bei ${URL_}`);
+  });
+
+  it('behandelt kaputtes JSON mit JSON-Content-Type als Vertragsfehler', async () => {
+    const { abruf } = baue(async () => antwort(200, '{kaputt', 'application/json'));
+    await expect(abruf(URL_)).rejects.toThrow(ApiVertragsFehler);
+  });
+
+  it('liefert 404 als Ergebnis', async () => {
+    const { abruf } = baue(async () => antwort(404, '', 'text/html'));
+    expect(await abruf(URL_)).toEqual({ status: 404 });
+  });
+
+  it('ruft die Drossel vor jeder Anfrage auf', async () => {
+    const { abruf, ereignisse } = baue(async () => antwort(200, '{}', 'application/json'));
+    await abruf(URL_);
+    await abruf(URL_);
+    expect(ereignisse).toEqual(['drossel', 'fetch', 'drossel', 'fetch']);
+  });
 });

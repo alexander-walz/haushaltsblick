@@ -1,3 +1,4 @@
+import { sha256Hex } from './abruf/http';
 import { archiviere, type ArchivOptionen } from './archiv';
 import { crawle, holeWurzel, type ApiAbruf, type ApiParameter } from './api/crawler';
 import { ApiVertragsFehler } from './api/schema';
@@ -52,13 +53,13 @@ export async function ladeApiJahr(sql: Sql, p: ApiParameter, opt: ApiIngestOptio
     const wurzel = await holeWurzel(p, abruf);
     if (wurzel.status === 'nicht_verfuegbar') return await ende('skipped', { hinweis: 'nicht verfügbar' });
     const vorher = opt.neuLaden ? null : await letzterApiStand(sql, p);
-    if (vorher?.quelleTimestamp === wurzel.antwort.meta.timestamp) return await ende('skipped', { hinweis: 'unverändert' });
+    if (vorher?.quelleTimestamp === wurzel.antwort.meta.timestamp && vorher.pipelineVersion === opt.pipelineVersion) return await ende('skipped', { hinweis: 'unverändert' });
 
     const crawl = await crawle(p, abruf, wurzel);
     const ndjson = Buffer.from(
       crawl.antworten.map((a) => JSON.stringify({ url: a.url, body: JSON.parse(a.roh.toString('utf8')) as unknown })).join('\n') + '\n',
     );
-    const ablage = await archiviere(opt.archiv, `api_${p.quote}_${p.jahr}_${p.konto}_${crawl.quelleTimestamp}.ndjson`, ndjson);
+    const ablage = await archiviere(opt.archiv, `api_${p.quote}_${p.jahr}_${p.konto}_${crawl.quelleTimestamp}_${sha256Hex(ndjson).slice(0, 16)}.ndjson`, ndjson);
     const anzahl = await inTransaktion(sql, (tx) =>
       speichereApiCrawl(tx, runId, p, crawl, { uri: ablage.uri, sha256: ablage.sha256, anfragen }),
     );

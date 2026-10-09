@@ -58,15 +58,15 @@ export async function letzteSollDatei(
   sql: Sql,
   jahr: number,
   opt: { lokal: boolean },
-): Promise<{ sha256: string; etag: string | null } | null> {
-  const [datei] = await sql<{ sha256: string; http_etag: string | null }[]>`
-    select f.sha256, f.http_etag
+): Promise<{ sha256: string; etag: string | null; pipelineVersion: string } | null> {
+  const [datei] = await sql<{ sha256: string; http_etag: string | null; pipeline_version: string }[]>`
+    select f.sha256, f.http_etag, l.pipeline_version
     from raw.source_file f join ops.load_run l using (run_id)
     where f.source_id = 'SRC_SOLL_XML' and f.jahr = ${jahr} and l.status = 'succeeded'
       and (l.params->>'datei' is not null) = ${opt.lokal}
     order by f.fetched_at desc, l.started_at desc
     limit 1`;
-  return datei ? { sha256: datei.sha256, etag: datei.http_etag } : null;
+  return datei ? { sha256: datei.sha256, etag: datei.http_etag, pipelineVersion: datei.pipeline_version } : null;
 }
 
 export async function speichereQuellDatei(sql: Sql, d: QuellDatei): Promise<void> {

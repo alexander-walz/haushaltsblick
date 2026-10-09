@@ -72,12 +72,14 @@ export async function ladeSollJahr(sql: Sql, jahr: number, opt: SollIngestOption
 
   try {
     const vorher = opt.neuLaden ? null : await letzteSollDatei(sql, jahr, { lokal: opt.lokaleDatei !== undefined });
+    // Nach einer Änderung der Pipeline-Version wird neu geladen: kein ETag, kein Überspringen bei gleichem Inhalt.
+    const versionGleich = vorher?.pipelineVersion === opt.pipelineVersion;
     const abruf = opt.lokaleDatei
       ? await leseLokaleDatei(opt.lokaleDatei)
-      : await (opt.abruf ?? holeSollXml)(jahr, { userAgent: opt.userAgent, etag: vorher?.etag ?? null });
+      : await (opt.abruf ?? holeSollXml)(jahr, { userAgent: opt.userAgent, etag: versionGleich ? (vorher?.etag ?? null) : null });
 
     if (abruf.status === 'nicht_vorhanden') return await ende('skipped', { hinweis: 'Datei noch nicht veröffentlicht' });
-    if (abruf.status === 'unveraendert' || abruf.sha256 === vorher?.sha256) {
+    if (abruf.status === 'unveraendert' || (versionGleich && abruf.sha256 === vorher?.sha256)) {
       return await ende('skipped', { hinweis: 'unverändert' });
     }
 
