@@ -1,3 +1,5 @@
+with kapitel as (select * from {{ source('raw', 'soll_kapitel') }}),
+lauf as (select * from {{ ref('stg_soll_laeufe') }})
 select
   k.jahr,
   k.einzelplan_nr,
@@ -7,5 +9,5 @@ select
   k.anlage_zu_kapitel_nr,
   k.entfallen,
   k.anzahl_titel
-from {{ source('raw', 'soll_kapitel') }} k
-join {{ ref('stg_soll_laeufe') }} l on l.run_id = k.run_id
+from kapitel k
+join lauf l on l.run_id = k.run_id

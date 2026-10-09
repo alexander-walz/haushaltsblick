@@ -5,9 +5,10 @@ with summen as (
          sum(ist_eur) as ist
   from {{ ref('fct_titel_jahr') }}
   group by jahr, konto
-)
+),
+kontrollsummen as (select * from {{ ref('kontrollsummen') }})
 select k.jahr, k.konto, k.wertart, k.betrag_eur as kontrollwert, s.soll, s.ist
-from {{ ref('kontrollsummen') }} k
+from kontrollsummen k
 join summen s on s.jahr = k.jahr and s.konto = k.konto
 where (k.wertart = 'soll' and s.soll is not null and s.soll <> k.betrag_eur)
    or (k.wertart = 'ist' and s.ist is not null and s.ist <> k.betrag_eur)

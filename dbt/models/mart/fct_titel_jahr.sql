@@ -8,6 +8,13 @@ with betraege as (
   from {{ ref('fct_betrag') }}
   group by jahr, konto, titel_key
 ),
+dim_titel as (select * from {{ ref('dim_titel') }}),
+verfuegbarkeit as (select * from {{ ref('dim_verfuegbarkeit') }}),
+einzelplan as (select * from {{ ref('dim_einzelplan') }}),
+kapitel as (select * from {{ ref('dim_kapitel') }}),
+funktion as (select * from {{ ref('dim_funktion') }}),
+gruppierung as (select * from {{ ref('dim_gruppierung') }}),
+haushaltsstand as (select * from {{ ref('dim_haushaltsstand') }}),
 werte as (
   select
     t.*,
@@ -16,8 +23,8 @@ werte as (
     b.soll_xml::numeric(18,2) as soll_xml_eur,
     case when v.ist_geladen then coalesce(b.ist, 0) end::numeric(18,2) as ist_eur,
     v.ist_geladen as ist_verfuegbar
-  from {{ ref('dim_titel') }} t
-  join {{ ref('dim_verfuegbarkeit') }} v on v.jahr = t.jahr and v.konto = t.konto
+  from dim_titel t
+  join verfuegbarkeit v on v.jahr = t.jahr and v.konto = t.konto
   left join betraege b on b.jahr = t.jahr and b.konto = t.konto and b.titel_key = t.titel_key
 ),
 zeilen as (
@@ -37,11 +44,11 @@ zeilen as (
     h.stand as haushaltsstand,
     w.im_haushaltsplan_xml
   from werte w
-  left join {{ ref('dim_einzelplan') }} e on e.jahr = w.jahr and e.einzelplan_nr = w.einzelplan_nr
-  left join {{ ref('dim_kapitel') }} k on k.jahr = w.jahr and k.kapitel_nr = w.kapitel_nr
-  left join {{ ref('dim_funktion') }} f on f.jahr = w.jahr and f.fkt = w.fkt
-  left join {{ ref('dim_gruppierung') }} g on g.jahr = w.jahr and g.gruppierung_nr = left(w.titel_nr, 3)
-  left join {{ ref('dim_haushaltsstand') }} h on h.jahr = w.jahr and h.konto = w.konto
+  left join einzelplan e on e.jahr = w.jahr and e.einzelplan_nr = w.einzelplan_nr
+  left join kapitel k on k.jahr = w.jahr and k.kapitel_nr = w.kapitel_nr
+  left join funktion f on f.jahr = w.jahr and f.fkt = w.fkt
+  left join gruppierung g on g.jahr = w.jahr and g.gruppierung_nr = left(w.titel_nr, 3)
+  left join haushaltsstand h on h.jahr = w.jahr and h.konto = w.konto
 )
 select z.*, md5(z::text) as zeilen_hash
 from zeilen z

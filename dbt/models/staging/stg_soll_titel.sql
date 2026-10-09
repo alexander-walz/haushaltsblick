@@ -1,3 +1,5 @@
+with titel as (select * from {{ source('raw', 'soll_titel') }}),
+lauf as (select * from {{ ref('stg_soll_laeufe') }})
 select
   t.jahr,
   t.konto,
@@ -18,5 +20,5 @@ select
   t.seite,
   t.soll_eur,
   t.run_id
-from {{ source('raw', 'soll_titel') }} t
-join {{ ref('stg_soll_laeufe') }} l on l.run_id = t.run_id
+from titel t
+join lauf l on l.run_id = t.run_id
