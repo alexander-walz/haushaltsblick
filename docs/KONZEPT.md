@@ -108,11 +108,15 @@ Die Bezeichnungen der Seed-Tabellen sind vor dem Go-Live gegen die aktuell gült
 | Negative Soll-Werte sind legitim | Titel `97201` „Globale Minderausgabe Konsolidierungsbeitrag“ mit `-168` | Keine Prüfung „Wert ≥ 0“; die KI erklärt globale Minderausgaben |
 | Verrechnungstitel mit Wert 0 | `38103`, `98103` nach § 61 BHO | In Rankings und Treemaps standardmäßig ausblenden |
 | Mehrere `<ausgaben>`-Blöcke je Kapitel | Erst nicht flexibilisierte Titel mit Ausgabeart, dann flexibilisierte Titel | Parser darf nicht „ein Block je Konto“ annehmen |
-| Leere Elemente | `<ausgaben/>` in Kapitel `0213` | Parser toleriert leere Knoten |
+| Leere Elemente | `<ausgaben/>` in Kapitel `0618` | Parser toleriert leere Knoten |
+| Anlagen | `<anlage>` mit Kapitel `6092` (KTF) in Kapitel `6002` | Getrennt summieren, nie im Gesamthaushalt (Roadmap E1) |
 | Titelgruppen ohne Ausgabeart | `<titelgruppe nr="57">` direkt unter `<einnahmen>` | Ausgabeart ist optional |
 | Soll-Stände | Regierungsentwurf, beschlossenes Gesetz, Nachtragshaushalt | Spalte `haushaltsstand` je Datenstand, nie still überschreiben |
 | Ist erst nach Jahresabschluss | Ist 2026 frühestens 2027 | Laufendes Jahr nur Soll, Ist als „nicht verfügbar“ statt 0 |
 | Ressortzuschnitte ändern sich | Bezeichnungen und Kapitel wandern zwischen Jahren | Dimensionen je Jahr historisieren, Zeitreihen über Titelschlüssel und Bezeichnung erklären |
+| Fehlendes `flexibilisiert` | 2012 bis 2024 bei Einnahmetiteln | null = nicht anwendbar, bei Ausgabetiteln Vertragsfehler |
+| Titeltext in mehreren `<text>`-Segmenten | Tiefgestellte 2 in „CO₂“ (2015, 2022 bis 2024, z. B. Titel `68424`) | Segmente eines `<titel>` ohne Trennzeichen verketten; mehrere `<text>` bei anderen Elementen bleiben Vertragsfehler |
+| Seite ohne Angabe | `seite="-"` 2016 bis 2020 | seite = null |
 
 ## 4. Datenquellen und Datenverträge
 
@@ -120,8 +124,8 @@ Der Soll kommt aus der amtlichen XML-Datei, der Ist aus der internalapi, und jed
 
 | ID | Quelle | Inhalt | Format und Zugriff | Rolle | Verlässlichkeit |
 | --- | --- | --- | --- | --- | --- |
-| `SRC_SOLL_XML` | [Haushaltsplan-XML](https://www.bundeshaushalt.de/static/daten/2026/soll/haushalt_2026.xml), Muster `/static/daten/{jahr}/soll/haushalt_{jahr}.xml` | Soll je Titel mit Funktion, Flexibilisierung, Seite | XML-Download, ohne Schlüssel | Führend für Soll | Offiziell, für 2024 und 2026 bestätigt, andere Jahre in Phase 1 prüfen |
-| `SRC_PORTAL_API` | [internalapi budgetData](https://github.com/bundesAPI/bundeshaushalt-api), `https://bundeshaushalt.de/internalapi/budgetData` | Soll und Ist hierarchisch, Sichten nach Einzelplan, Funktion, Gruppe | JSON, ohne Schlüssel, undokumentiert | Führend für Ist, Abgleich für Soll | Inoffiziell, kann sich ohne Ankündigung ändern |
+| `SRC_SOLL_XML` | [Haushaltsplan-XML](https://www.bundeshaushalt.de/static/daten/2026/soll/haushalt_2026.xml), Muster `/static/daten/{jahr}/soll/haushalt_{jahr}.xml` | Soll je Titel mit Funktion, Flexibilisierung, Seite | XML-Download, ohne Schlüssel | Führend für Soll | Offiziell, 2012 bis 2026 bestätigt (08.10.2026) |
+| `SRC_PORTAL_API` | [internalapi budgetData](https://github.com/bundesAPI/bundeshaushalt-api), `https://www.bundeshaushalt.de/internalapi/budgetData` | Soll und Ist hierarchisch, Sichten nach Einzelplan, Funktion, Gruppe | JSON, ohne Schlüssel, undokumentiert | Führend für Ist, Abgleich für Soll | Inoffiziell, kann sich ohne Ankündigung ändern |
 | `SRC_PLAN_PDF` | Haushaltsplan je Einzelplan, Muster `/static/daten/{jahr}/soll/epl{nn}.pdf` | Amtliches Dokument mit Erläuterungen | PDF | Ziel des Fundstellen-Links (Seite aus XML) | Offiziell |
 | `SRC_HHR_PDF` | Haushaltsrechnung des Bundes, Band 2, Muster `/static/daten/{jahr}/ist/Haushaltsrechnung_{jahr}_Band_2_webg.pdf` | Ist je Titel | PDF | Manuelle Kontrollsummen für Ist | Offiziell |
 | `SRC_BMF_OPENDATA` | BMF-Datenportal, Gesamtübersicht | Aggregierte Jahreswerte | CSV/XLSX, Datenlizenz Deutschland Namensnennung 2.0 | Kontrollsummen | Offiziell |
@@ -146,18 +150,38 @@ owner: haushaltsblick-data
 beschreibung: Haushaltsplan des Bundes, Soll je Titel
 url_muster: https://www.bundeshaushalt.de/static/daten/{jahr}/soll/haushalt_{jahr}.xml
 lizenz: Amtliches Werk, Quellenvermerk "Bundesministerium der Finanzen, bundeshaushalt.de"
-aktualisierung: bei neuem Haushaltsstand, Prüfung wöchentlich
+aktualisierung: bei neuem Haushaltsstand, Prüfung wöchentlich, bedingter Abruf über ETag
+verfuegbarkeit: 2012 bis 2026 bestätigt am 08.10.2026, Folgejahr liefert 404 bis zur Veröffentlichung
 einheit_betrag: tausend_eur
 schema:
   wurzel: haushalt[@jahr]
-  pfad: einzelplan[@nr]/kapitel[@nr]/(einnahmen|ausgaben)/(einnahmen-ausgaben-art|titelgruppe[@nr])?/titel[@nr]
+  pfad: einzelplan[@nr]/kapitel[@nr]/(anlage/kapitel[@nr])?/(einnahmen|ausgaben)/(einnahmen-ausgaben-art|titelgruppe[@nr])?/titel[@nr]
+  elemente: [haushalt, einzelplan, kapitel, anlage, text, einnahmen, ausgaben, einnahmen-ausgaben-art, titelgruppe, titel, soll]
   titel_attribute: [nr, flexibilisiert, fkt, seite]
   betrag: titel/soll[@wert]
 erwartungen:
+  - haushalt_jahr: "^[0-9]{4}$"
+  - einzelplan_nr: "^[0-9]{2}$"
+  - kapitel_nr: "^[0-9]{4}$ und beginnt mit der Einzelplannummer"
   - titel_nr: "^[0-9]{5}$"
-  - kapitel_nr: "^[0-9]{4}$"
   - fkt: "^[0-9]{3}$"
-  - flexibilisiert: [ja, nein]
+  - flexibilisiert: [ja, nein], fehlt bei Einnahmetiteln 2012 bis 2024 (dann null), Pflicht bei Ausgabetiteln
+  - soll_wert: "^-?[0-9]+$"
+  - seite: "^[0-9]+$ oder \"-\" (keine Angabe, 2016 bis 2020), optional"
+  - titel: liegt innerhalb von einnahmen oder ausgaben und hat genau ein soll, ein oder mehrere text-Segmente
+besonderheiten:
+  - anlage: Wirtschaftspläne von Sondervermögen, 2026 Kapitel 6092 (Klima- und Transformationsfonds) in Kapitel 6002. Nicht Teil des Gesamthaushalts, getrennt summieren.
+  - mehrere Blöcke einnahmen oder ausgaben je Kapitel (erst mit Ausgabeart, dann flexibilisierte Titel ohne)
+  - entfallene Kapitel ohne Titel, teils mit leerem Element (2026 Kapitel 0618 mit <ausgaben/>)
+  - negative Soll-Werte bei globalen Minderausgaben (Gruppe 972)
+  - Einnahmetitel ohne flexibilisiert in 2012 bis 2024, Wert null (nicht anwendbar); an Ausgabetiteln bleibt das Attribut Pflicht
+  - seite="-" an wenigen Titeln 2016 bis 2020, bedeutet keine Seitenangabe, Wert null
+  - Titeltext in mehreren <text>-Segmenten (tiefgestellte Zeichen wie CO2), 2015 und 2022 bis 2024: verketten ohne Trennzeichen
+kontrollwerte_2026:
+  haushalt_tsd_eur: 524540138 (Einnahmen gleich Ausgaben, entspricht dem Wurzelwert der internalapi)
+  anlagen_tsd_eur: 34803623 (Einnahmen gleich Ausgaben)
+  anzahl_titel: 6995
+  entfallene_kapitel: ["0415", "0454", "0618", "1204", "1608"]
 bei_verletzung: lauf_in_quarantaene
 ```
 
@@ -396,7 +420,7 @@ create table ops.dataset_version (
 );
 create unique index one_current_version on ops.dataset_version (is_current) where is_current;
 
--- Rohdateien (Inhalt liegt in Supabase Storage, Bucket raw)
+-- Rohdateien
 create table raw.source_file (
   run_id        uuid not null references ops.load_run,
   source_id     text not null,
@@ -407,7 +431,7 @@ create table raw.source_file (
   fetched_at    timestamptz not null,
   sha256        text not null,
   byte_size     integer not null,
-  storage_path  text not null,
+  ablage_uri    text not null,
   primary key (run_id, source_url)
 );
 
@@ -420,16 +444,20 @@ create table raw.soll_titel (
   einzelplan_text   text not null,
   kapitel_nr        text not null,
   kapitel_text      text not null,
+  anlage_zu_kapitel_nr text,
   konto             text not null check (konto in ('einnahmen','ausgaben')),
+  konto_block       integer not null check (konto_block >= 1),
   ausgabeart_text   text,
   titelgruppe_nr    text,
   titelgruppe_text  text,
   titel_nr          text not null,
   titel_text        text not null,
-  flexibilisiert    boolean not null,
+  titel_key         text generated always as (kapitel_nr || titel_nr) stored,
+  flexibilisiert    boolean,
   fkt               text not null,
   seite             integer,
   soll_tsd_eur      numeric(18,0) not null,
+  soll_eur          numeric(18,2) generated always as (soll_tsd_eur * 1000) stored,
   xml_pfad          text not null,   -- /haushalt/einzelplan[04]/kapitel[0416]/ausgaben[1]/titelgruppe[02]/titel[68421]
   zeilen_hash       text not null
 );

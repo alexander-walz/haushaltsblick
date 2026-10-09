@@ -1,1 +1,9 @@
+node_modules/
+data/raw/
+.env
+.env.*
+coverage/
+*.log
+supabase/.temp/
+supabase/.branches/
 .superpowers/
