@@ -42,7 +42,24 @@ describe('ladeSollJahr', () => {
       expect(e.zusammenfassung?.haushaltTsdEur).toEqual({ einnahmen: 145016, ausgaben: 1457 });
       expect(await laufStatus(tx, e.runId)).toEqual({ status: 'succeeded', rows_loaded: 8, error: null });
       const [datei] = await tx<{ sha256: string }[]>`select sha256 from raw.source_file where run_id = ${e.runId}`;
-      expect(readdirSync(join(ablage, 'soll', '2026'))).toContain(`${datei!.sha256}.xml`);
+      expect(readdirSync(ablage)).toContain(`soll_2026_${datei!.sha256.slice(0, 16)}.xml.gz`);
+    }));
+
+  it('legt die Datei komprimiert im Archiv ab und speichert deren URI', () =>
+    imRollback(async (tx) => {
+      const e = await ladeSollJahr(tx, 2026, optionen({ lokaleDatei: einmaligeDatei(), archivBasisUrl: 'https://example.org/rohdaten' }));
+      const [datei] = await tx<{ sha256: string; ablage_uri: string }[]>`select sha256, ablage_uri from raw.source_file where run_id = ${e.runId}`;
+      const name = `soll_2026_${datei!.sha256.slice(0, 16)}.xml.gz`;
+      expect(datei!.ablage_uri).toBe(`https://example.org/rohdaten/${name}`);
+      expect(readdirSync(ablage)).toContain(name);
+    }));
+
+  it('lädt mit neuLaden auch eine unveränderte Datei erneut', () =>
+    imRollback(async (tx) => {
+      const pfad = einmaligeDatei();
+      await ladeSollJahr(tx, 2026, optionen({ lokaleDatei: pfad }));
+      const zweiter = await ladeSollJahr(tx, 2026, optionen({ lokaleDatei: pfad, neuLaden: true }));
+      expect(zweiter.status).toBe('succeeded');
     }));
 
   it('überspringt eine unveränderte Datei ohne doppelte Zeilen', () =>

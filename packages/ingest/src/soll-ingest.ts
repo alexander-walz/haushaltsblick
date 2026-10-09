@@ -1,7 +1,8 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { holeSollXml, sha256Hex, type AbrufErgebnis } from './abruf/soll-xml';
+import { archiviere } from './archiv';
 import { inTransaktion, type Sql } from './db/client';
 import {
   beendeLauf, letzteSollDatei, speichereQuellDatei, speichereSollZeilen, starteLauf,
@@ -17,6 +18,8 @@ export type SollIngestOptionen = {
   pipelineVersion: string;
   userAgent: string;
   ablageVerzeichnis: string;
+  archivBasisUrl?: string;
+  neuLaden?: boolean;
   lokaleDatei?: string;
   abruf?: typeof holeSollXml;
   /** Test-Seam: ersetzt das Speichern der Zeilen. */
@@ -48,14 +51,6 @@ async function leseLokaleDatei(pfad: string): Promise<NeueDatei> {
   };
 }
 
-async function legeAb(verzeichnis: string, jahr: number, datei: NeueDatei): Promise<string> {
-  const ordner = join(verzeichnis, 'soll', String(jahr));
-  await mkdir(ordner, { recursive: true });
-  const pfad = join(ordner, `${datei.sha256}.xml`);
-  await writeFile(pfad, datei.inhalt);
-  return pathToFileURL(pfad).href;
-}
-
 /** Ein Ladelauf für ein Haushaltsjahr: abrufen, ablegen, parsen, prüfen, atomar speichern, protokollieren. */
 export async function ladeSollJahr(sql: Sql, jahr: number, opt: SollIngestOptionen): Promise<JahresErgebnis> {
   const runId = await starteLauf(sql, {
@@ -63,7 +58,7 @@ export async function ladeSollJahr(sql: Sql, jahr: number, opt: SollIngestOption
     trigger: opt.trigger,
     gitSha: opt.gitSha,
     pipelineVersion: opt.pipelineVersion,
-    params: { jahr, datei: opt.lokaleDatei ?? null },
+    params: { jahr, datei: opt.lokaleDatei ?? null, neu_laden: opt.neuLaden ? 'ja' : null },
   });
 
   const ende = async (
@@ -76,7 +71,7 @@ export async function ladeSollJahr(sql: Sql, jahr: number, opt: SollIngestOption
   };
 
   try {
-    const vorher = await letzteSollDatei(sql, jahr, { lokal: opt.lokaleDatei !== undefined });
+    const vorher = opt.neuLaden ? null : await letzteSollDatei(sql, jahr, { lokal: opt.lokaleDatei !== undefined });
     const abruf = opt.lokaleDatei
       ? await leseLokaleDatei(opt.lokaleDatei)
       : await (opt.abruf ?? holeSollXml)(jahr, { userAgent: opt.userAgent, etag: vorher?.etag ?? null });
@@ -86,7 +81,11 @@ export async function ladeSollJahr(sql: Sql, jahr: number, opt: SollIngestOption
       return await ende('skipped', { hinweis: 'unverändert' });
     }
 
-    const ablageUri = await legeAb(opt.ablageVerzeichnis, jahr, abruf);
+    const ablage = await archiviere(
+      { verzeichnis: opt.ablageVerzeichnis, basisUrl: opt.archivBasisUrl },
+      `soll_${jahr}_${abruf.sha256.slice(0, 16)}.xml`,
+      abruf.inhalt,
+    );
     const zeilen: SollZeile[] = [];
     for await (const zeile of parseSollXml([abruf.inhalt.toString('utf8')])) zeilen.push(zeile);
     const zusammenfassung = fasseSollZusammen(zeilen);
@@ -105,7 +104,7 @@ export async function ladeSollJahr(sql: Sql, jahr: number, opt: SollIngestOption
         abgerufenAm: abruf.abgerufenAm,
         sha256: abruf.sha256,
         byteSize: abruf.inhalt.byteLength,
-        ablageUri,
+        ablageUri: ablage.uri,
       });
       return (opt.speichern ?? speichereSollZeilen)(tx, runId, zeilen);
     });
