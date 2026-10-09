@@ -1,11 +1,14 @@
 {
   "name": "@hb/ingest",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "scripts": {
     "start": "tsx src/bin.ts",
     "api": "tsx src/bin-api.ts",
+    "systematik": "tsx src/bin-systematik.ts",
+    "veroeffentliche": "tsx src/bin-veroeffentlichung.ts",
+    "raeume-auf": "tsx src/bin-aufraeumen.ts",
     "test": "vitest run --project unit",
     "test:int": "vitest run --project integration",
     "typecheck": "tsc --noEmit -p ."

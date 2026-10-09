@@ -1,0 +1,72 @@
+version: 2
+
+unit_tests:
+  - name: soll_nimmt_letzten_erfolgreichen_netzlauf_je_jahr
+    model: stg_soll_laeufe
+    given:
+      - input: source('raw', 'source_file')
+        rows:
+          - {run_id: '00000000-0000-0000-0000-000000000001', source_id: SRC_SOLL_XML, jahr: 2026, fetched_at: '2026-01-01 00:00:00+00'}
+          - {run_id: '00000000-0000-0000-0000-000000000002', source_id: SRC_SOLL_XML, jahr: 2026, fetched_at: '2026-02-01 00:00:00+00'}
+          - {run_id: '00000000-0000-0000-0000-000000000003', source_id: SRC_SOLL_XML, jahr: 2026, fetched_at: '2026-03-01 00:00:00+00'}
+          - {run_id: '00000000-0000-0000-0000-000000000004', source_id: SRC_SOLL_XML, jahr: 2025, fetched_at: '2026-03-01 00:00:00+00'}
+      - input: source('ops', 'load_run')
+        rows:
+          - {run_id: '00000000-0000-0000-0000-000000000001', status: succeeded, started_at: '2026-01-01 00:00:00+00', params: '{}'}
+          - {run_id: '00000000-0000-0000-0000-000000000002', status: succeeded, started_at: '2026-02-01 00:00:00+00', params: '{"datei": "fixtures/x.xml"}'}
+          - {run_id: '00000000-0000-0000-0000-000000000003', status: quarantined, started_at: '2026-03-01 00:00:00+00', params: '{}'}
+          - {run_id: '00000000-0000-0000-0000-000000000004', status: succeeded, started_at: '2026-03-01 00:00:00+00', params: '{}'}
+    expect:
+      rows:
+        - {jahr: 2025, run_id: '00000000-0000-0000-0000-000000000004'}
+        - {jahr: 2026, run_id: '00000000-0000-0000-0000-000000000001'}
+
+  - name: soll_titel_bereinigt_texte
+    model: stg_soll_titel
+    given:
+      - input: ref('stg_soll_laeufe')
+        rows:
+          - {run_id: '00000000-0000-0000-0000-000000000001', jahr: 2023}
+      - input: source('raw', 'soll_titel')
+        rows:
+          - {run_id: '00000000-0000-0000-0000-000000000001', jahr: 2023, konto: ausgaben, titel_key: '091171121', titel_nr: '71121', titel_text: "Kleine Neu-\uFEFF, Um- und Erweiterungsbauten", soll_eur: 1000.00}
+          - {run_id: '00000000-0000-0000-0000-000000000001', jahr: 2023, konto: ausgaben, titel_key: '090366122', titel_nr: '66122', titel_text: "Zuschüsse an die KfW-\nBankengruppe für\nenergetische  Sanierung", soll_eur: 0.00}
+          - {run_id: '00000000-0000-0000-0000-000000000001', jahr: 2023, konto: einnahmen, titel_key: '010138103', titel_nr: '38103', titel_text: "gemäß § 61 BHO", anlage_zu_kapitel_nr: '6002', soll_eur: 0.00}
+          - {run_id: '00000000-0000-0000-0000-000000000099', jahr: 2023, konto: ausgaben, titel_key: '099999999', titel_nr: '99999', titel_text: 'anderer Lauf', soll_eur: 1.00}
+    expect:
+      rows:
+        - {titel_key: '091171121', titel_text: 'Kleine Neu-, Um- und Erweiterungsbauten', ist_anlage: false}
+        - {titel_key: '090366122', titel_text: 'Zuschüsse an die KfW-Bankengruppe für energetische Sanierung', ist_anlage: false}
+        - {titel_key: '010138103', titel_text: 'gemäß § 61 BHO', ist_anlage: true}
+
+  - name: api_nimmt_letzten_erfolgreichen_lauf_je_jahr_konto_quote
+    model: stg_api_laeufe
+    given:
+      - input: source('raw', 'api_abruf')
+        rows:
+          - {run_id: '00000000-0000-0000-0000-000000000011', jahr: 2024, konto: ausgaben, quote: ist, quelle_timestamp: 1, modify_date: '01.01.2025'}
+          - {run_id: '00000000-0000-0000-0000-000000000012', jahr: 2024, konto: ausgaben, quote: ist, quelle_timestamp: 2, modify_date: '01.02.2025'}
+          - {run_id: '00000000-0000-0000-0000-000000000013', jahr: 2024, konto: ausgaben, quote: soll, quelle_timestamp: 3, modify_date: '01.03.2025'}
+      - input: source('ops', 'load_run')
+        rows:
+          - {run_id: '00000000-0000-0000-0000-000000000011', status: succeeded, started_at: '2026-01-01 00:00:00+00'}
+          - {run_id: '00000000-0000-0000-0000-000000000012', status: succeeded, started_at: '2026-02-01 00:00:00+00'}
+          - {run_id: '00000000-0000-0000-0000-000000000013', status: failed, started_at: '2026-03-01 00:00:00+00'}
+    expect:
+      rows:
+        - {jahr: 2024, konto: ausgaben, quote: ist, run_id: '00000000-0000-0000-0000-000000000012'}
+
+  - name: api_knoten_ohne_codepraefix
+    model: stg_api_knoten
+    given:
+      - input: ref('stg_api_laeufe')
+        rows:
+          - {run_id: '00000000-0000-0000-0000-000000000012', jahr: 2024, konto: ausgaben, quote: ist}
+      - input: source('raw', 'api_knoten')
+        rows:
+          - {run_id: '00000000-0000-0000-0000-000000000012', jahr: 2024, konto: ausgaben, quote: ist, ebene: gesamt, knoten_id: '', label: 'Istwerte des Haushaltsjahres 2024', betrag_eur: 5.00}
+          - {run_id: '00000000-0000-0000-0000-000000000012', jahr: 2024, konto: ausgaben, quote: ist, ebene: einzelplan, knoten_id: '04', label: '04 Bundeskanzler und Bundeskanzleramt', betrag_eur: 5.00}
+    expect:
+      rows:
+        - {ebene: gesamt, label: 'Istwerte des Haushaltsjahres 2024'}
+        - {ebene: einzelplan, label: 'Bundeskanzler und Bundeskanzleramt'}

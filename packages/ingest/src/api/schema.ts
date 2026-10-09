@@ -11,7 +11,7 @@ export class ApiVertragsFehler extends Error {
 }
 
 const KIND = z.object({
-  id: z.string().regex(/^(\d{2}|\d{4}|\d{9})$/),
+  id: z.string().regex(/^(\d{2}|\d{4}|\d{9}|[FG]-\d{1,3})$/),
   budgetNumber: z.string(),
   label: z.string(),
   value: z.number(),
@@ -21,14 +21,14 @@ const KIND = z.object({
 
 const META = z.object({
   year: z.number().int(),
-  unit: z.literal('single'),
+  unit: z.enum(['single', 'function', 'group']),
   quota: z.enum(['target', 'actual']),
   account: z.enum(['expenses', 'income']),
   timestamp: z.number().int(),
   modifyDate: z.string(),
-  entity: z.enum(['Budget', 'Section', 'Chapter', 'Title']),
+  entity: z.enum(['Budget', 'Section', 'Chapter', 'Title', 'Function', 'Group']),
   levelCur: z.number().int().min(0).max(3),
-  levelMax: z.literal(3),
+  levelMax: z.union([z.literal(3), z.literal(4)]),
 });
 
 const DETAIL = z.object({

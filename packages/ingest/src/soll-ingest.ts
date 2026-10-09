@@ -24,6 +24,8 @@ export type SollIngestOptionen = {
   abruf?: typeof holeSollXml;
   /** Test-Seam: ersetzt das Speichern der Zeilen. */
   speichern?: typeof speichereSollZeilen;
+  /** Test-Seam: ersetzt das Abschließen des Laufs. */
+  beende?: typeof beendeLauf;
 };
 
 export type JahresErgebnis = {
@@ -66,8 +68,15 @@ export async function ladeSollJahr(sql: Sql, jahr: number, opt: SollIngestOption
     extra: { hinweis?: string; zusammenfassung?: SollZusammenfassung; rowsLoaded?: number } = {},
   ): Promise<JahresErgebnis> => {
     const fehler = status === 'failed' || status === 'quarantined' ? extra.hinweis : undefined;
-    await beendeLauf(sql, runId, { status, rowsLoaded: extra.rowsLoaded, fehler });
-    return { jahr, runId, status, lokal: opt.lokaleDatei !== undefined, zusammenfassung: extra.zusammenfassung, hinweis: extra.hinweis };
+    let endStatus = status;
+    let endHinweis = extra.hinweis;
+    try {
+      await (opt.beende ?? beendeLauf)(sql, runId, { status, rowsLoaded: extra.rowsLoaded, fehler });
+    } catch (e) {
+      endStatus = 'failed';
+      endHinweis = [extra.hinweis, `Lauf konnte nicht abgeschlossen werden: ${e instanceof Error ? e.message : String(e)}`].filter(Boolean).join('; ');
+    }
+    return { jahr, runId, status: endStatus, lokal: opt.lokaleDatei !== undefined, zusammenfassung: extra.zusammenfassung, hinweis: endHinweis };
   };
 
   try {

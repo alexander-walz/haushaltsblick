@@ -21,8 +21,8 @@ export type CrawlErgebnis = {
   warnungen: string[];
 };
 
-const API_BASIS = 'https://www.bundeshaushalt.de/internalapi/budgetData';
-const ACCOUNT = { ausgaben: 'expenses', einnahmen: 'income' } as const;
+export const API_BASIS = 'https://www.bundeshaushalt.de/internalapi/budgetData';
+export const ACCOUNT = { ausgaben: 'expenses', einnahmen: 'income' } as const;
 const QUOTA = { ist: 'actual', soll: 'target' } as const;
 const BUDGET_NUMBER_TITEL = /^(\d{4}) (\d{3}) (\d{2}) - (\d{3})$/;
 const LABEL_PRAEFIX = /^\d{4} \d{3} \d{2} /;
@@ -40,10 +40,38 @@ export function centZuDezimal(cent: number): string {
   return `${vorzeichen}${Math.trunc(betrag / 100)}.${String(betrag % 100).padStart(2, '0')}`;
 }
 
-async function holeGeprueft(url: string, abruf: ApiAbruf) {
+export async function holeGeprueft(url: string, abruf: ApiAbruf) {
   const roh = await abruf(url);
   if (roh.status === 404) return null;
   return { roh: roh.roh, ...pruefeApiAntwort(roh.json, url) };
+}
+
+export type Erwartung = {
+  jahr: number;
+  account: 'expenses' | 'income';
+  quota: 'target' | 'actual';
+  unit: 'single' | 'function' | 'group';
+  levelCur: number;
+  levelMax: 3 | 4;
+};
+
+/** Prüft, dass die Antwort zur Anfrage passt und der Knoten centgenau der Summe seiner Kinder entspricht. */
+export function pruefeKonsistenz(a: ApiAntwort, url: string, e: Erwartung): void {
+  if (a.meta.year !== e.jahr || a.meta.account !== e.account || a.meta.quota !== e.quota || a.meta.unit !== e.unit || a.meta.levelMax !== e.levelMax) {
+    throw new ApiVertragsFehler('Antwort passt nicht zur Anfrage', url);
+  }
+  if (a.meta.levelCur !== e.levelCur) throw new ApiVertragsFehler(`levelCur ${a.meta.levelCur} statt ${e.levelCur}`, url);
+  const kinderCent = a.children.reduce((s, k) => s + zuCent(k.value), 0);
+  const knotenCent = zuCent(a.detail.value);
+  if (kinderCent !== knotenCent) {
+    throw new ApiVertragsFehler(`Summe der Kinder ${centZuDezimal(kinderCent)} weicht vom Knoten ${centZuDezimal(knotenCent)} ab`, url);
+  }
+}
+
+export function pruefeElternwert(ebene: string, id: string, eigenCent: number, elternCent: number, url: string): void {
+  if (eigenCent !== elternCent) {
+    throw new ApiVertragsFehler(`${ebene} ${id}: Wert ${centZuDezimal(eigenCent)} weicht vom Elternknoten ${centZuDezimal(elternCent)} ab`, url);
+  }
 }
 
 export async function holeWurzel(p: ApiParameter, abruf: ApiAbruf): Promise<Wurzel> {
@@ -61,24 +89,10 @@ export async function crawle(p: ApiParameter, abruf: ApiAbruf, wurzel: Extract<W
   const warnungen = new Set(wurzel.warnungen);
   const titelKeys = new Set<string>();
 
-  const pruefeAntwort = (a: ApiAntwort, url: string, levelCur: number) => {
-    if (a.meta.year !== p.jahr || a.meta.account !== ACCOUNT[p.konto] || a.meta.quota !== QUOTA[p.quote]) {
-      throw new ApiVertragsFehler('Antwort passt nicht zur Anfrage', url);
-    }
-    if (a.meta.levelCur !== levelCur) throw new ApiVertragsFehler(`levelCur ${a.meta.levelCur} statt ${levelCur}`, url);
-    const kinderCent = a.children.reduce((s, k) => s + zuCent(k.value), 0);
-    const knotenCent = zuCent(a.detail.value);
-    if (kinderCent !== knotenCent) {
-      throw new ApiVertragsFehler(`Summe der Kinder ${centZuDezimal(kinderCent)} weicht vom Knoten ${centZuDezimal(knotenCent)} ab`, url);
-    }
-  };
+  const pruefeAntwort = (a: ApiAntwort, url: string, levelCur: number) =>
+    pruefeKonsistenz(a, url, { jahr: p.jahr, account: ACCOUNT[p.konto], quota: QUOTA[p.quote], unit: 'single', levelCur, levelMax: 3 });
   const pruefeKnotenId = (a: ApiAntwort, id: string, url: string) => {
     if (a.detail.id !== id) throw new ApiVertragsFehler(`Antwort gehört zu Knoten ${a.detail.id ?? '(ohne ID)'} statt ${id}`, url);
-  };
-  const pruefeElternwert = (ebene: string, id: string, eigenCent: number, elternCent: number, url: string) => {
-    if (eigenCent !== elternCent) {
-      throw new ApiVertragsFehler(`${ebene} ${id}: Wert ${centZuDezimal(eigenCent)} weicht vom Elternknoten ${centZuDezimal(elternCent)} ab`, url);
-    }
   };
   const holeKnoten = async (id: string) => {
     const url = apiUrl(p, id);

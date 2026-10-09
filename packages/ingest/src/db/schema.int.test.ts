@@ -99,4 +99,62 @@ describe('Datenbankschema', () => {
         returning flexibilisiert`;
       expect(titel).toEqual({ flexibilisiert: null });
     }));
+
+  it('legt den DQ-Katalog mit 18 Prüfungen an', () =>
+    imRollback(async (tx) => {
+      const rows = await tx<{ check_id: string; schwere: string }[]>`select check_id, schwere from ops.dq_check order by check_id`;
+      expect(rows.map((r) => r.check_id)).toEqual(Array.from({ length: 18 }, (_, i) => `DQ-${String(i + 1).padStart(2, '0')}`));
+      expect(rows.filter((r) => r.schwere === 'error').map((r) => r.check_id)).toEqual([
+        'DQ-01', 'DQ-02', 'DQ-03', 'DQ-07', 'DQ-08', 'DQ-09', 'DQ-13', 'DQ-15', 'DQ-16', 'DQ-17',
+      ]);
+      const neu = await tx`select check_id, dimension, schwere from ops.dq_check where check_id in ('DQ-17', 'DQ-18') order by check_id`;
+      expect(neu.map((r) => [r.check_id, r.dimension, r.schwere])).toEqual([['DQ-17', 'Vollständigkeit', 'error'], ['DQ-18', 'Betrieb', 'warn']]);
+    }));
+
+  it('entzieht public das Ausführen von Veröffentlichung und Aufräumen', () =>
+    imRollback(async (tx) => {
+      const [z] = await tx`
+        select has_function_privilege('anon', 'ops.veroeffentliche_version(bigint)', 'execute') as veroeffentlichen,
+               has_function_privilege('anon', 'ops.raeume_raw_auf()', 'execute') as aufraeumen`;
+      expect(z).toEqual({ veroeffentlichen: false, aufraeumen: false });
+    }));
+
+  it('ops.dq_lauf protokolliert den dbt-Aufruf', () =>
+    imRollback(async (tx) => {
+      const [z] = await tx`
+        select data_type, is_nullable, column_default from information_schema.columns
+        where table_schema = 'ops' and table_name = 'dq_lauf' and column_name = 'dbt_aufruf'`;
+      expect(z).toEqual({ data_type: 'jsonb', is_nullable: 'NO', column_default: "'{}'::jsonb" });
+    }));
+
+  it('verweigert anon den Zugriff auf mart und core', () =>
+    imRollback(async (tx) => {
+      await expect(inTransaktion(tx, async (t) => {
+        await t.unsafe('set local role anon');
+        await t`select 1 from mart.fct_titel_jahr_hist limit 1`;
+      })).rejects.toThrow(/permission denied/);
+    }));
+
+  it('räumt Rohdaten nicht maßgeblicher Läufe auf', () =>
+    imRollback(async (tx) => {
+      const lauf = async (beginn: string) => {
+        const [l] = await tx<{ run_id: string }[]>`
+          insert into ops.load_run (source_id, trigger, git_sha, pipeline_version, status, started_at)
+          values ('SRC_SOLL_XML', 'ci', 'test', '0.3.0', 'succeeded', ${beginn}) returning run_id`;
+        await tx`insert into raw.source_file (run_id, source_id, jahr, source_url, fetched_at, sha256, byte_size, ablage_uri)
+                 values (${l!.run_id}, 'SRC_SOLL_XML', 1999, ${'x' + beginn}, ${beginn}, ${'a'.repeat(64)}, 1, 'x')`;
+        await tx`insert into raw.soll_kapitel (run_id, jahr, einzelplan_nr, einzelplan_text, kapitel_nr, kapitel_text, anzahl_titel, entfallen, xml_pfad)
+                 values (${l!.run_id}, 1999, '01', 'EP', '0101', 'K', 0, true, '/x')`;
+        return l!.run_id;
+      };
+      const alt = await lauf('2026-01-01T00:00:00Z');
+      const neu = await lauf('2026-02-01T00:00:00Z');
+      const ergebnis = await tx<{ tabelle: string; geloescht: string }[]>`select * from ops.raeume_raw_auf()`;
+      expect(ergebnis.map((r) => r.tabelle)).toEqual([
+        'raw.soll_titel', 'raw.soll_kapitel', 'raw.api_titel', 'raw.api_knoten', 'raw.api_systematik',
+      ]);
+      const reste = await tx<{ run_id: string }[]>`select run_id from raw.soll_kapitel where jahr = 1999`;
+      expect(reste.map((r) => r.run_id)).toEqual([neu]);
+      expect(reste.map((r) => r.run_id)).not.toContain(alt);
+    }));
 });

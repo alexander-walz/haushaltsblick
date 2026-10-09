@@ -68,6 +68,6 @@ describe('CLI', () => {
         return { status: 'nicht_vorhanden', url: sollXmlUrl(2027) };
       };
       await main(['--jahre', '2027'], { sql: tx, heute: HEUTE, ablageVerzeichnis: ablage, abruf, log: () => {} });
-      expect(gesehen).toEqual(['Haushaltsblick/0.2.0 (+https://github.com/alexander-walz/haushaltsblick)']);
+      expect(gesehen).toEqual(['Haushaltsblick/0.3.0 (+https://github.com/alexander-walz/haushaltsblick)']);
     }));
 });

@@ -13,6 +13,8 @@ export type ApiIngestOptionen = {
   archiv: ArchivOptionen;
   abruf: ApiAbruf;
   neuLaden?: boolean;
+  /** Test-Seam: ersetzt das Abschließen des Laufs. */
+  beende?: typeof beendeLauf;
 };
 
 export type ApiErgebnis = {
@@ -45,8 +47,15 @@ export async function ladeApiJahr(sql: Sql, p: ApiParameter, opt: ApiIngestOptio
 
   const ende = async (status: LaufStatus, extra: { hinweis?: string; titel?: number; summeCent?: number } = {}): Promise<ApiErgebnis> => {
     const fehler = status === 'failed' || status === 'quarantined' ? extra.hinweis : undefined;
-    await beendeLauf(sql, runId, { status, rowsLoaded: extra.titel, fehler });
-    return { parameter: p, runId, status, anfragen, ...extra };
+    let endStatus = status;
+    let endHinweis = extra.hinweis;
+    try {
+      await (opt.beende ?? beendeLauf)(sql, runId, { status, rowsLoaded: extra.titel, fehler });
+    } catch (e) {
+      endStatus = 'failed';
+      endHinweis = [extra.hinweis, `Lauf konnte nicht abgeschlossen werden: ${e instanceof Error ? e.message : String(e)}`].filter(Boolean).join('; ');
+    }
+    return { parameter: p, runId, status: endStatus, anfragen, ...extra, hinweis: endHinweis };
   };
 
   try {

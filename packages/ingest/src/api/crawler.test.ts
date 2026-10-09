@@ -124,6 +124,14 @@ describe('crawle', () => {
     await expect(vollerCrawl(baum)).rejects.toThrow(/Titel 041143257 mehrfach/);
   });
 
+  it('lehnt in der Einzelplan-Sicht Antworten einer anderen Sicht ab', async () => {
+    const baum = baueBaum(P, PLAN);
+    const ep = baum.get(apiUrl(P, '04')) as { meta: { unit: string; levelMax: number } };
+    ep.meta.unit = 'function';
+    ep.meta.levelMax = 4;
+    await expect(vollerCrawl(baum)).rejects.toThrow(/Antwort passt nicht zur Anfrage/);
+  });
+
   it('sammelt Warnungen aus allen Antworten ohne Doppelungen', async () => {
     const baum = baueBaum(P, PLAN);
     for (const json of baum.values()) (json as Record<string, unknown>).neu = 1;

@@ -10,6 +10,7 @@
     "typecheck": "pnpm -r --if-present typecheck",
     "db:start": "pnpm dlx supabase@2.120.0 db start && pnpm dlx supabase@2.120.0 migration up --local",
     "db:reset": "pnpm dlx supabase@2.120.0 db reset --local",
-    "db:stop": "pnpm dlx supabase@2.120.0 stop"
+    "db:stop": "pnpm dlx supabase@2.120.0 stop",
+    "dbt": "python scripts/dbt.py"
   }
 }

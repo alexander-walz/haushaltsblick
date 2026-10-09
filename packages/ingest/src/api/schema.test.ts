@@ -69,3 +69,24 @@ describe('pruefeApiAntwort bei Abweichungen', () => {
     expect(() => pruefeApiAntwort(null, URL_X)).toThrow(ApiVertragsFehler);
   });
 });
+
+describe('pruefeApiAntwort für Funktions- und Gruppierungssicht', () => {
+  const basis = () => structuredClone(fixture('kap0411_ist_2024_ausgaben')) as Record<string, any>;
+
+  it('akzeptiert unit function und group mit levelMax 4 und F-/G-Codes', () => {
+    for (const [unit, entity, id] of [['function', 'Function', 'F-322'], ['group', 'Group', 'G-684']] as const) {
+      const json = basis();
+      json.meta.unit = unit;
+      json.meta.entity = entity;
+      json.meta.levelMax = 4;
+      json.children[0].id = id;
+      expect(pruefeApiAntwort(json, URL_X).warnungen).toEqual([]);
+    }
+  });
+
+  it('lehnt unbekannte Sichten ab', () => {
+    const json = basis();
+    json.meta.unit = 'region';
+    expect(() => pruefeApiAntwort(json, URL_X)).toThrow(ApiVertragsFehler);
+  });
+});
