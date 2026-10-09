@@ -34,6 +34,7 @@ dbt-core 1.12.5 mit dbt-postgres 1.11.0 (Python 3.13, lokal in .venv über uv).
 - pnpm --filter @hb/ingest api --quote ist --jahre 2012-2025   Ist aus der internalapi (beide Konten), --konten ausgaben|einnahmen, --neu-laden
 - pnpm --filter @hb/ingest api --quote soll --jahre 2027       Soll-Entwurf des Folgejahres aus der internalapi
 - pnpm --filter @hb/ingest systematik --jahre alle     Bezeichnungen der Funktionen und Gruppierungen je Jahr (--konten, --sichten, --neu-laden)
+- pnpm --filter @hb/ingest veroeffentliche   Ampel aus dbt-Ergebnissen, DQ-Lauf speichern, bei grün/gelb neue Datenversion veröffentlichen und raw aufräumen
 
 ## Konventionen
 - Fachbegriffe deutsch (soll, einzelplan_nr, ladeSollJahr), technische Begriffe englisch.
