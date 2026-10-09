@@ -24,7 +24,7 @@ jobs:
   ingest:
     if: vars.HB_INGEST_AKTIV == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    timeout-minutes: 300
     env:
       HB_TRIGGER: ${{ github.event_name == 'schedule' && 'schedule' || 'manual' }}
       HB_ARCHIV_BASIS_URL: https://github.com/${{ github.repository }}/releases/download/rohdaten
@@ -42,6 +42,7 @@ jobs:
         with:
           version: 2.120.0
       - name: Migrationen anwenden
+        id: migration
         env:
           DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: supabase db push --db-url "$DATABASE_URL" --yes
@@ -61,14 +62,43 @@ jobs:
         run: |
           # shellcheck disable=SC2086
           pnpm --silent --filter @hb/ingest api --quote ist --jahre "$JAHRE" $NEU_LADEN | tee -a bericht.md
-      - name: Soll-Entwurf des Folgejahres aus der internalapi
-        id: entwurf
+      - name: Soll aus der internalapi
+        id: sollapi
         continue-on-error: true
         env:
           DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
           # shellcheck disable=SC2086
-          pnpm --silent --filter @hb/ingest api --quote soll --jahre "$(( $(date +%Y) + 1 ))" $NEU_LADEN | tee -a bericht.md
+          pnpm --silent --filter @hb/ingest api --quote soll --jahre "$JAHRE" $NEU_LADEN | tee -a bericht.md
+      - name: Systematik aus der internalapi
+        id: systematik
+        continue-on-error: true
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          # shellcheck disable=SC2086
+          pnpm --silent --filter @hb/ingest systematik --jahre "$JAHRE" $NEU_LADEN | tee -a bericht.md
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: pip install -r dbt/requirements.txt
+      - name: dbt (Seeds, Modelle, Tests)
+        id: dbt
+        continue-on-error: true
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          # Modelle und Tests getrennt, damit ein Fehler-Test die übrigen Prüfungen nicht überspringt.
+          pnpm --silent dbt seed
+          pnpm --silent dbt run
+          pnpm --silent dbt test
+      - name: Ampel und Veröffentlichung
+        id: veroeffentlichung
+        if: always() && steps.migration.outcome == 'success'
+        continue-on-error: true
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: pnpm --silent --filter @hb/ingest veroeffentliche | tee -a bericht.md
       - name: Rohdaten im Release ablegen
         if: always()
         env:
@@ -85,7 +115,7 @@ jobs:
         run: |
           if [ -f bericht.md ]; then { echo "## Ingest"; echo; cat bericht.md; } >> "$GITHUB_STEP_SUMMARY"; fi
       - name: Ergebnis
-        if: steps.soll.outcome == 'failure' || steps.ist.outcome == 'failure' || steps.entwurf.outcome == 'failure'
+        if: steps.soll.outcome == 'failure' || steps.ist.outcome == 'failure' || steps.sollapi.outcome == 'failure' || steps.systematik.outcome == 'failure' || steps.veroeffentlichung.outcome == 'failure'
         run: |
           echo "Mindestens ein Ingest-Schritt ist fehlgeschlagen oder in Quarantäne. Siehe Bericht und docs/betrieb.md."
           exit 1
