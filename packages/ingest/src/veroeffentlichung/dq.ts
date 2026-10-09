@@ -4,6 +4,8 @@ export type DbtTest = { name: string; dqId: string; schwere: Schwere; status: st
 export type DqStatus = 'pass' | 'warn' | 'fail';
 export type DqErgebnis = { checkId: string; status: DqStatus; failures: number; details: string[] };
 export type Ampel = 'green' | 'yellow' | 'red';
+/** Aufrufdaten des dbt-Laufs aus run_results.json (args und metadata.invocation_id). */
+export type DbtAufruf = { invocation_id: string | null; which: string | null; select: unknown[]; exclude: unknown[]; vars: Record<string, unknown> };
 
 type Objekt = Record<string, unknown>;
 const istObjekt = (x: unknown): x is Objekt => typeof x === 'object' && x !== null && !Array.isArray(x);
@@ -30,6 +32,19 @@ export function leseDbtTests(runResults: unknown, manifest: unknown): DbtTest[] 
     });
   }
   return tests;
+}
+
+/** Liest, wie dbt aufgerufen wurde; gesetzte vars kennzeichnen einen gelockerten Testlauf. */
+export function leseDbtAufruf(runResults: unknown): DbtAufruf {
+  const args = istObjekt(runResults) && istObjekt(runResults.args) ? runResults.args : {};
+  const metadata = istObjekt(runResults) && istObjekt(runResults.metadata) ? runResults.metadata : {};
+  return {
+    invocation_id: typeof metadata.invocation_id === 'string' ? metadata.invocation_id : null,
+    which: typeof args.which === 'string' ? args.which : null,
+    select: Array.isArray(args.select) ? args.select : [],
+    exclude: Array.isArray(args.exclude) ? args.exclude : [],
+    vars: istObjekt(args.vars) ? args.vars : {},
+  };
 }
 
 const RANG: Record<DqStatus, number> = { pass: 0, warn: 1, fail: 2 };
@@ -60,7 +75,10 @@ export function bewerteDq(tests: DbtTest[], katalog: KatalogEintrag[]): { ergebn
     let failures = 0;
     const details: string[] = [];
     for (const t of eigene) {
-      const b = bewerteTest(t);
+      // Für die Statusabbildung zählt die Schwere aus dem Katalog; eine abweichende dbt-Schwere ist ein Fehler.
+      const b = t.schwere === k.schwere
+        ? bewerteTest(t)
+        : { status: 'fail' as const, detail: `${t.name}: Schwere ${t.schwere} weicht vom Katalog (${k.schwere}) ab` };
       if (RANG[b.status] > RANG[status]) status = b.status;
       failures += t.failures;
       if (b.detail) details.push(b.detail);

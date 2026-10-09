@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bewerteDq, leseDbtTests, type DbtTest, type KatalogEintrag } from './dq';
+import { bewerteDq, leseDbtAufruf, leseDbtTests, type DbtTest, type KatalogEintrag } from './dq';
 
 const katalog: KatalogEintrag[] = [
   { checkId: 'DQ-01', schwere: 'error' },
@@ -38,6 +38,27 @@ describe('leseDbtTests', () => {
       { name: 'b', dqId: 'DQ-04', schwere: 'warn', status: 'warn', failures: 2, nachricht: 'Got 2 results, configured to warn if != 0' },
       { name: 'c', dqId: 'DQ-02', schwere: 'error', status: 'fail', failures: 5, nachricht: null },
     ]);
+  });
+});
+
+describe('leseDbtAufruf', () => {
+  it('liest vars, select, exclude, which und invocation_id', () => {
+    const runResults = {
+      metadata: { dbt_version: '1.12.5', invocation_id: '7e2305e7-b935-45df-852c-6f57d5a0dda9' },
+      args: { which: 'test', select: ['dq13_ist_vollstaendig'], exclude: [], vars: { dq13_ab_jahr: 2023 }, log_level: 'info' },
+      results: [],
+    };
+    expect(leseDbtAufruf(runResults)).toEqual({
+      invocation_id: '7e2305e7-b935-45df-852c-6f57d5a0dda9',
+      which: 'test',
+      select: ['dq13_ist_vollstaendig'],
+      exclude: [],
+      vars: { dq13_ab_jahr: 2023 },
+    });
+  });
+
+  it('liefert leere Werte, wenn args und metadata fehlen', () => {
+    expect(leseDbtAufruf({ results: [] })).toEqual({ invocation_id: null, which: null, select: [], exclude: [], vars: {} });
   });
 });
 
@@ -85,6 +106,19 @@ describe('bewerteDq', () => {
     const r = bewerteDq([...alle(), { ...test('DQ-01', 'fail', { failures: 1 }), name: 'zweiter' }], katalog);
     expect(r.ergebnisse[0]?.status).toBe('fail');
     expect(r.ergebnisse[0]?.failures).toBe(1);
+  });
+
+  it('Schwere aus dem Katalog zählt: abweichende dbt-Schwere ist fail', () => {
+    const r = bewerteDq([test('DQ-01', 'pass'), test('DQ-02', 'pass'), test('DQ-04', 'pass', { schwere: 'error' })], katalog);
+    expect(r.ampel).toBe('red');
+    expect(r.ergebnisse[2]).toEqual({ checkId: 'DQ-04', status: 'fail', failures: 0, details: ['t_DQ-04: Schwere error weicht vom Katalog (warn) ab'] });
+  });
+
+  it('Test mit Schwere warn bei Katalog error wird nicht zur Warnung', () => {
+    const r = bewerteDq([test('DQ-01', 'fail', { failures: 2, schwere: 'warn' }), test('DQ-02', 'pass'), test('DQ-04', 'pass')], katalog);
+    expect(r.ampel).toBe('red');
+    expect(r.ergebnisse[0]?.status).toBe('fail');
+    expect(r.ergebnisse[0]?.details).toContain('t_DQ-01: Schwere warn weicht vom Katalog (error) ab');
   });
 
   it('unbekannte dq_id wirft', () => {

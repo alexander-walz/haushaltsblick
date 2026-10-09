@@ -1,4 +1,4 @@
-import type { Ampel, DqErgebnis, KatalogEintrag, Schwere } from '../veroeffentlichung/dq';
+import type { Ampel, DbtAufruf, DqErgebnis, KatalogEintrag, Schwere } from '../veroeffentlichung/dq';
 import type { Sql } from './client';
 
 export async function ladeDqKatalog(sql: Sql): Promise<KatalogEintrag[]> {
@@ -8,12 +8,13 @@ export async function ladeDqKatalog(sql: Sql): Promise<KatalogEintrag[]> {
 
 export async function speichereDqLauf(
   sql: Sql,
-  lauf: { gitSha: string; manifestSha: string; ampel: Ampel; score: number },
+  lauf: { gitSha: string; manifestSha: string; ampel: Ampel; score: number; dbtAufruf?: DbtAufruf },
   ergebnisse: DqErgebnis[],
 ): Promise<number> {
+  const aufruf = lauf.dbtAufruf ?? {};
   const [kopf] = await sql`
-    insert into ops.dq_lauf (git_sha, dbt_manifest_sha, ampel, score)
-    values (${lauf.gitSha}, ${lauf.manifestSha}, ${lauf.ampel}, ${lauf.score})
+    insert into ops.dq_lauf (git_sha, dbt_manifest_sha, ampel, score, dbt_aufruf)
+    values (${lauf.gitSha}, ${lauf.manifestSha}, ${lauf.ampel}, ${lauf.score}, ${sql.json(aufruf as Parameters<Sql['json']>[0])})
     returning dq_lauf_id`;
   const id = Number(kopf!.dq_lauf_id);
   for (const e of ergebnisse) {

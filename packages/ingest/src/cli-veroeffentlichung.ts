@@ -7,7 +7,7 @@ import { zelle } from './api-bericht';
 import { inTransaktion, verbinde, type Sql } from './db/client';
 import { ladeDqKatalog, raeumeRawAuf, speichereDqLauf, veroeffentlicheVersion } from './db/veroeffentlichung';
 import { laufKontext } from './lauf-kontext';
-import { bewerteDq, leseDbtTests, type Ampel, type DqErgebnis } from './veroeffentlichung/dq';
+import { bewerteDq, leseDbtAufruf, leseDbtTests, type Ampel, type DqErgebnis } from './veroeffentlichung/dq';
 
 export type VeroeffentlichungAbhaengigkeiten = { sql?: Sql; log?: (text: string) => void; targetVerzeichnis?: string };
 
@@ -24,13 +24,23 @@ function lese(verzeichnis: string, datei: string): string {
 export async function mainVeroeffentlichung(argv: readonly string[], abh: VeroeffentlichungAbhaengigkeiten = {}): Promise<number> {
   const { values } = parseArgs({
     args: argv.filter((a) => a !== '--'),
-    options: { target: { type: 'string' } },
+    options: {
+      target: { type: 'string' },
+      // Veröffentlicht auch, wenn dbt mit --vars (gelockerten Prüfungen) lief.
+      testlauf: { type: 'boolean', default: false },
+      // Rohdaten erst nach erfolgreichem Archiv-Upload aufräumen (CLI raeume-auf).
+      'ohne-aufraeumen': { type: 'boolean', default: false },
+    },
   });
   const verzeichnis = values.target ?? abh.targetVerzeichnis ?? STANDARD_TARGET_VERZEICHNIS;
   const runResultsText = lese(verzeichnis, 'run_results.json');
   const manifestText = lese(verzeichnis, 'manifest.json');
   const manifestSha = sha256Hex(manifestText);
-  const tests = leseDbtTests(JSON.parse(runResultsText), JSON.parse(manifestText));
+  const runResults: unknown = JSON.parse(runResultsText);
+  const tests = leseDbtTests(runResults, JSON.parse(manifestText));
+  const dbtAufruf = leseDbtAufruf(runResults);
+  const varsGesetzt = Object.keys(dbtAufruf.vars).length > 0;
+  const testlauf = varsGesetzt && values.testlauf === true;
 
   const kontext = laufKontext();
   const sql = abh.sql ?? verbinde();
@@ -39,27 +49,39 @@ export async function mainVeroeffentlichung(argv: readonly string[], abh: Veroef
     const katalog = await ladeDqKatalog(sql);
     const { ergebnisse, ampel, score } = bewerteDq(tests, katalog);
     const veroeffentlicht = await inTransaktion(sql, async (tx) => {
-      const dqLaufId = await speichereDqLauf(tx, { gitSha: kontext.gitSha, manifestSha, ampel, score }, ergebnisse);
-      if (ampel === 'red') return null;
+      const dqLaufId = await speichereDqLauf(tx, { gitSha: kontext.gitSha, manifestSha, ampel, score, dbtAufruf }, ergebnisse);
+      if (ampel === 'red' || (varsGesetzt && !testlauf)) return null;
       const version = await veroeffentlicheVersion(tx, dqLaufId);
-      const geloescht = await raeumeRawAuf(tx);
+      const geloescht = values['ohne-aufraeumen'] ? null : await raeumeRawAuf(tx);
       return { version, geloescht };
     });
-    log(formatiereBericht(ampel, score, ergebnisse, veroeffentlicht));
+    const grund = ampel === 'red' ? 'Rote Ampel: Datenstand nicht veröffentlicht.' : 'nicht veröffentlicht: dbt mit --vars ausgeführt (Testlauf)';
+    const kopf = testlauf ? [`Testlauf (vars: ${JSON.stringify(dbtAufruf.vars)})`] : [];
+    log(formatiereBericht(kopf, ampel, score, ergebnisse, veroeffentlicht, grund));
     return veroeffentlicht ? 0 : 1;
   } finally {
     if (!abh.sql) await sql.end();
   }
 }
 
+const zeile = (zellen: readonly string[]) => `| ${zellen.join(' | ')} |`;
+
+/** Tabelle der beim Aufräumen von raw gelöschten Zeilen (auch für das CLI raeume-auf). */
+export function formatiereAufraeumen(geloescht: readonly { tabelle: string; geloescht: number }[]): string {
+  const zeilen = [zeile(['Rohtabelle', 'Gelöschte Zeilen']), zeile(['---', '---'])];
+  for (const g of geloescht) zeilen.push(zeile([zelle(g.tabelle), String(g.geloescht)]));
+  return zeilen.join('\n');
+}
+
 function formatiereBericht(
+  kopf: readonly string[],
   ampel: Ampel,
   score: number,
   ergebnisse: readonly DqErgebnis[],
-  veroeffentlicht: { version: { versionId: number; zeilenNeu: number; zeilenGeschlossen: number; zeilenGesamt: number }; geloescht: { tabelle: string; geloescht: number }[] } | null,
+  veroeffentlicht: { version: { versionId: number; zeilenNeu: number; zeilenGeschlossen: number; zeilenGesamt: number }; geloescht: { tabelle: string; geloescht: number }[] | null } | null,
+  grund: string,
 ): string {
-  const zeile = (zellen: readonly string[]) => `| ${zellen.join(' | ')} |`;
-  const zeilen = [`Ampel: ${AMPEL_DEUTSCH[ampel]}`, `Score: ${score.toFixed(2)}`, ''];
+  const zeilen = [...kopf, `Ampel: ${AMPEL_DEUTSCH[ampel]}`, `Score: ${score.toFixed(2)}`, ''];
   const offen = ergebnisse.filter((e) => e.status !== 'pass');
   if (offen.length > 0) {
     zeilen.push(zeile(['Prüfung', 'Status', 'Zeilen', 'Details']), zeile(['---', '---', '---', '---']));
@@ -67,12 +89,11 @@ function formatiereBericht(
     zeilen.push('');
   }
   if (!veroeffentlicht) {
-    zeilen.push('Rote Ampel: Datenstand nicht veröffentlicht.');
+    zeilen.push(grund);
     return zeilen.join('\n');
   }
   const v = veroeffentlicht.version;
   zeilen.push(`Version ${v.versionId} veröffentlicht: ${v.zeilenNeu} neue, ${v.zeilenGeschlossen} geschlossene, ${v.zeilenGesamt} Zeilen gesamt.`, '');
-  zeilen.push(zeile(['Rohtabelle', 'Gelöschte Zeilen']), zeile(['---', '---']));
-  for (const g of veroeffentlicht.geloescht) zeilen.push(zeile([zelle(g.tabelle), String(g.geloescht)]));
+  zeilen.push(veroeffentlicht.geloescht ? formatiereAufraeumen(veroeffentlicht.geloescht) : 'Rohdaten nicht aufgeräumt (--ohne-aufraeumen).');
   return zeilen.join('\n');
 }

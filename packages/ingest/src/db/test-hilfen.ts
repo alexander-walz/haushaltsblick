@@ -30,3 +30,14 @@ export async function imRollback(fn: (tx: Sql) => Promise<void>): Promise<void> 
     await sql.end();
   }
 }
+
+/** Legt eine Rohzeile eines fehlgeschlagenen Laufs an, die ops.raeume_raw_auf löschen würde. */
+export async function veralteteRohzeile(tx: Sql): Promise<string> {
+  const [lauf] = await tx`
+    insert into ops.load_run (source_id, trigger, git_sha, pipeline_version, status)
+    values ('SRC_PORTAL_API', 'manual', 'test', '0.3.0', 'failed') returning run_id`;
+  await tx`
+    insert into raw.api_knoten (run_id, jahr, konto, quote, ebene, knoten_id, label, betrag_eur)
+    values (${lauf!.run_id}, 2099, 'ausgaben', 'ist', 'gesamt', 'x', 'veraltet', 1)`;
+  return String(lauf!.run_id);
+}
