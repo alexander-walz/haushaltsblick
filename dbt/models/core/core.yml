@@ -1,0 +1,58 @@
+version: 2
+
+unit_tests:
+  - name: haushaltsstand_aus_label
+    model: dim_haushaltsstand
+    given:
+      - input: ref('stg_api_knoten')
+        rows:
+          - {jahr: 2020, konto: ausgaben, quote: soll, ebene: gesamt, label: 'Sollwerte des Haushaltsjahres 2020, inkl. 1. und 2. Nachtragshaushalt', betrag_eur: 508530000000.00}
+          - {jahr: 2024, konto: ausgaben, quote: soll, ebene: gesamt, label: 'Sollwerte des Haushaltsjahres 2024', betrag_eur: 476807656000.00}
+          - {jahr: 2027, konto: ausgaben, quote: soll, ebene: gesamt, label: 'Regierungsentwurf 2027', betrag_eur: 555435744000.00}
+          - {jahr: 2024, konto: ausgaben, quote: ist, ebene: gesamt, label: 'Istwerte des Haushaltsjahres 2024', betrag_eur: 474753727609.58}
+      - input: ref('stg_soll_titel')
+        rows:
+          - {jahr: 2020, konto: ausgaben, ist_anlage: false, soll_eur: 362000000000.00}
+          - {jahr: 2024, konto: ausgaben, ist_anlage: false, soll_eur: 476807656000.00}
+          - {jahr: 2024, konto: ausgaben, ist_anlage: true, soll_eur: 1.00}
+          - {jahr: 2019, konto: ausgaben, ist_anlage: false, soll_eur: 356400000000.00}
+    expect:
+      rows:
+        - {jahr: 2019, konto: ausgaben, stand: 'nur Haushaltsplan-XML', anzahl_nachtraege: 0, differenz_xml_api_eur: null}
+        - {jahr: 2020, konto: ausgaben, stand: 'Gesetz inkl. Nachtragshaushalt', anzahl_nachtraege: 2, differenz_xml_api_eur: -146530000000.00}
+        - {jahr: 2024, konto: ausgaben, stand: 'Gesetz', anzahl_nachtraege: 0, differenz_xml_api_eur: 0.00}
+        - {jahr: 2027, konto: ausgaben, stand: 'Regierungsentwurf', anzahl_nachtraege: 0, differenz_xml_api_eur: null}
+
+  - name: funktion_nutzt_naechstgelegenes_jahr
+    model: dim_funktion
+    given:
+      - input: ref('stg_api_systematik')
+        rows:
+          - {jahr: 2024, konto: ausgaben, sicht: funktion, code: '3', ebene: 1, label: 'Gesundheit, Umwelt, Sport und Erholung'}
+          - {jahr: 2024, konto: ausgaben, sicht: funktion, code: '32', ebene: 2, label: 'Sport und Erholung'}
+          - {jahr: 2024, konto: ausgaben, sicht: funktion, code: '322', ebene: 3, label: 'Sport'}
+          - {jahr: 2024, konto: ausgaben, sicht: gruppierung, code: '322', ebene: 3, label: 'falsche Sicht'}
+      - input: ref('dim_titel')
+        rows:
+          - {jahr: 2024, konto: ausgaben, titel_key: '041668421', fkt: '322'}
+          - {jahr: 2012, konto: ausgaben, titel_key: '060168421', fkt: '322'}
+    expect:
+      rows:
+        - {jahr: 2012, fkt: '322', funktion_text: 'Sport', funktion_text_jahr: 2024, oberfunktion: '32', oberfunktion_text: 'Sport und Erholung', hauptfunktion: '3'}
+        - {jahr: 2024, fkt: '322', funktion_text: 'Sport', funktion_text_jahr: 2024, oberfunktion: '32', oberfunktion_text: 'Sport und Erholung', hauptfunktion: '3'}
+
+  - name: titel_vereint_xml_und_api
+    model: dim_titel
+    given:
+      - input: ref('stg_soll_titel')
+        rows:
+          - {jahr: 2024, konto: ausgaben, titel_key: '041143257', einzelplan_nr: '04', kapitel_nr: '0411', titel_nr: '43257', titel_text: 'Versorgungsbezüge (XML)', titelgruppe_nr: '57', flexibilisiert: false, fkt: '018', seite: 12, ist_anlage: false}
+          - {jahr: 2024, konto: ausgaben, titel_key: '609268309', einzelplan_nr: '60', kapitel_nr: '6092', titel_nr: '68309', titel_text: 'Anlage', fkt: '643', ist_anlage: true}
+      - input: ref('stg_api_titel')
+        rows:
+          - {jahr: 2024, konto: ausgaben, quote: soll, titel_key: '041143257', einzelplan_nr: '04', kapitel_nr: '0411', titel_nr: '43257', fkt: '018', label: 'Versorgungsbezüge'}
+          - {jahr: 2024, konto: ausgaben, quote: ist, titel_key: '041198101', einzelplan_nr: '04', kapitel_nr: '0411', titel_nr: '98101', fkt: '890', label: 'Nur im Ist'}
+    expect:
+      rows:
+        - {titel_key: '041143257', titel_text: 'Versorgungsbezüge', titelgruppe_nr: '57', seite: 12, im_haushaltsplan_xml: true}
+        - {titel_key: '041198101', titel_text: 'Nur im Ist', titelgruppe_nr: null, seite: null, im_haushaltsplan_xml: false}
