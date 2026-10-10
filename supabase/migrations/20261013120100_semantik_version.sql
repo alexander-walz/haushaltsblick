@@ -59,7 +59,7 @@ alter default privileges in schema semantic revoke all on tables from anon, auth
 alter table ops.dataset_version add column semantik_version_id bigint references semantic.semantik_version;
 
 -- Legt den Inhalt der Seeds als Semantik-Version ab oder liefert die bestehende Version mit gleichem Inhalt.
-create function ops.sichere_semantik()
+create or replace function ops.sichere_semantik()
 returns bigint
 language plpgsql
 as $$
@@ -72,11 +72,12 @@ begin
     raise exception 'Semantik-Seeds fehlen in core (zuerst pnpm dbt seed ausführen)';
   end if;
 
+  -- coalesce je Komponente: concat_ws überspringt NULL, eine leere Tabelle verschöbe sonst die übrigen Komponenten.
   select md5(concat_ws('|',
-    (select string_agg(k::text, ';' order by k.kennzahl_id) from core.semantik_kennzahlen k),
-    (select string_agg(s::text, ';' order by s.begriff, s.typ, s.schluessel, s.konto, s.jahr_von) from core.semantik_synonyme s),
-    (select string_agg(g::text, ';' order by g.begriff) from core.semantik_glossar g),
-    (select string_agg(e::text, ';' order by e.jahr) from core.semantik_einwohner e)))
+    coalesce((select string_agg(k::text, ';' order by k.kennzahl_id) from core.semantik_kennzahlen k), ''),
+    coalesce((select string_agg(s::text, ';' order by s.begriff, s.typ, s.schluessel, s.konto, s.jahr_von) from core.semantik_synonyme s), ''),
+    coalesce((select string_agg(g::text, ';' order by g.begriff) from core.semantik_glossar g), ''),
+    coalesce((select string_agg(e::text, ';' order by e.jahr) from core.semantik_einwohner e), '')))
   into v_hash;
 
   select sv.semantik_version_id into v_id from semantic.semantik_version sv where sv.inhalt_hash = v_hash;
