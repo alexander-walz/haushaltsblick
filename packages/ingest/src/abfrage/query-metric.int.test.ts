@@ -146,6 +146,33 @@ describe('api.query_metric', () => {
       ]);
     }));
 
+  it('vervielfacht beim Vorjahresvergleich nichts, wenn das Vorjahr mehrere Quellen hat', () =>
+    mitTestdaten(async (tx) => {
+      const titel = TITEL.map((t) => (t.jahr === 2024 && t.titelKey === '060168421' ? { ...t, sollQuelle: 'xml' as const } : t));
+      await veroeffentlicheTitel(tx, titel);
+      const r = await abfrage(tx, { kennzahlen: ['soll', 'soll_vj_abs'], gruppierung: ['soll_quelle'], filter: { konto: 'ausgaben', jahr: 2025 } });
+      expect(r.zeilen).toEqual([{ soll_quelle: 'api', soll: 160 * MRD, soll_vj_abs: 10 * MRD }]);
+    }));
+
+  it('nimmt bei Gleichstand der Bezeichnung den alphabetisch ersten Text', () =>
+    mitTestdaten(async (tx) => {
+      const titel: TestTitel[] = [
+        { jahr: 2024, titelKey: '140153201', soll: 1, ist: 1, einzelplanText: 'B-Text' },
+        { jahr: 2024, titelKey: '140153202', soll: 1, ist: 1, einzelplanText: 'A-Text' },
+      ];
+      await veroeffentlicheTitel(tx, titel);
+      const r = await abfrage(tx, { kennzahlen: ['soll'], gruppierung: ['einzelplan_nr'], filter: { konto: 'ausgaben' } });
+      expect(r.zeilen).toEqual([{ einzelplan_nr: '14', einzelplan_text: 'A-Text', soll: 2 }]);
+    }));
+
+  it('behandelt doppelte Filterwerte als einen und null als absteigend', () =>
+    mitTestdaten(async (tx) => {
+      const r = await abfrage(tx, { kennzahlen: ['soll'], filter: { konto: ['ausgaben', 'ausgaben'], jahr: 2024 } });
+      expect(r.parameter.filter).toEqual({ konto: ['ausgaben'], jahr: [2024] });
+      const [z] = await tx`select api.query_metric('{soll}'::text[], '{}'::text[], '{"konto":"ausgaben"}'::jsonb, null, null, 50, null) as r`;
+      expect((z!.r as Ergebnis).parameter.absteigend).toBe(true);
+    }));
+
   it('sortiert, begrenzt und nennt die Kürzung', () =>
     mitTestdaten(async (tx) => {
       const r = await abfrage(tx, { kennzahlen: ['soll'], gruppierung: ['titel_key'], filter: { konto: 'ausgaben', jahr: 2024 }, sortierung: 'soll', limit: 1 });
@@ -205,6 +232,8 @@ describe('api.query_metric', () => {
       ['ohne Konto', { kennzahlen: ['soll'], gruppierung: ['jahr'] }, /Konto festlegen/],
       ['zwei Konten ohne Gruppierung', { kennzahlen: ['soll'], filter: { konto: ['ausgaben', 'einnahmen'] } }, /Konto festlegen/],
       ['je Kopf ohne einzelnes Jahr', { kennzahlen: ['soll_pro_kopf'], filter: { konto: 'ausgaben' } }, /einzelnes Jahr/],
+      ['Titelgruppe ohne Kapitel gruppieren', { kennzahlen: ['soll'], gruppierung: ['titelgruppe_nr'], filter: { konto: 'ausgaben' } }, /Titelgruppe nur zusammen mit kapitel_nr/],
+      ['Titelgruppe ohne Kapitel filtern', { kennzahlen: ['soll'], filter: { konto: 'ausgaben', titelgruppe_nr: '01' } }, /nur zusammen mit Filter kapitel_nr/],
       ['Sortierung nach nicht angefragter Kennzahl', { kennzahlen: ['soll'], filter: { konto: 'ausgaben' }, sortierung: 'ist' }, /Sortierung nur nach/],
     ];
     for (const [name, a, fehler] of faelle) {

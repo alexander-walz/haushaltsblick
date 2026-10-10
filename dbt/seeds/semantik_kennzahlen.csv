@@ -15,4 +15,4 @@ soll_vj_abs,Veränderung Soll zum Vorjahr,Soll minus Soll des Vorjahres beim gle
 soll_vj_rel,Veränderung Soll zum Vorjahr relativ,Veränderung bezogen auf das Soll des Vorjahres.,(soll(t) minus soll(t-1)) / soll(t-1),Anteil,true,140
 ist_vj_abs,Veränderung Ist zum Vorjahr,Ist minus Ist des Vorjahres beim gleichen Schlüssel.,ist(t) minus ist(t-1),EUR,true,150
 ist_vj_rel,Veränderung Ist zum Vorjahr relativ,Veränderung bezogen auf das Ist des Vorjahres.,(ist(t) minus ist(t-1)) / ist(t-1),Anteil,true,160
-titel_anzahl,Anzahl Titel,"Anzahl der Titel in der Auswahl, Titel mit Betrag 0 eingeschlossen.",Anzahl Zeilen,Anzahl,false,170
+titel_anzahl,Anzahl Titel,"Anzahl der Titel in der Auswahl je Jahr, Titel mit Betrag 0 eingeschlossen. Über mehrere Jahre zählt jeder Titel einmal je Jahr.",Anzahl Zeilen,Anzahl,false,170

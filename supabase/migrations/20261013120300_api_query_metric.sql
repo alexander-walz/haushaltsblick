@@ -1,6 +1,6 @@
 -- Plan 4: eine generische Abfragefunktion für Dashboard und Agent (Konzept Abschnitt 10).
 -- SQL entsteht nur aus Positivlisten (Bezeichner mit %I); Filterwerte gehen als Parameter $3 hinein.
-create function api.query_metric(
+create or replace function api.query_metric(
   p_metrics    text[],
   p_group_by   text[]  default '{}',
   p_filters    jsonb   default '{}',
@@ -29,6 +29,7 @@ declare
   v ops.dataset_version := semantic.version_oder_aktuell(p_version);
   v_sem bigint := semantic.semantik_von(v);
   v_eingabe jsonb := coalesce(p_filters, '{}'::jsonb);
+  v_absteigend boolean := coalesce(p_absteigend, true);
   v_limit integer := least(greatest(coalesce(p_limit, 50), 1), 500);
   v_metrics text[];
   v_dims text[];
@@ -42,6 +43,8 @@ declare
   v_ausdruck text;
   v_liste text;
   v_sel_basis text[] := array[]::text[];
+  v_sel_vj text[] := array[]::text[];
+  v_group_vj text[] := array['h.jahr', 'h.konto'];
   v_group_basis text[] := array['h.jahr', 'h.konto'];
   v_sel_final text[] := array[]::text[];
   v_group_final text[] := array[]::text[];
@@ -101,15 +104,25 @@ begin
          or exists (select 1 from jsonb_array_elements(v_wert) e where jsonb_typeof(e) not in ('string', 'number', 'boolean')) then
         raise exception 'Filter % braucht einen Wert oder eine Liste einfacher Werte', v_key using errcode = '22023';
       end if;
+      select jsonb_agg(x.e order by x.o) into v_wert
+      from (select t.e, min(t.o) as o from jsonb_array_elements(v_wert) with ordinality as t(e, o) group by t.e) x;
       v_filter := v_filter || jsonb_build_object(v_key, v_wert);
       v_where := v_where || format(' and h.%I::text = any(array(select jsonb_array_elements_text($3->%L)))', v_key, v_key);
-      if v_key <> 'jahr' then
+      if v_key <> all(array['jahr', 'haushaltsstand', 'soll_quelle']) then
         v_where_vj := v_where_vj || format(' and h.%I::text = any(array(select jsonb_array_elements_text($3->%L)))', v_key, v_key);
       end if;
     else
       raise exception 'Unzulässiger Filter: %', v_key using errcode = '22023';
     end if;
   end loop;
+
+  -- Titelgruppen sind nur je Kapitel eindeutig
+  if 'titelgruppe_nr' = any(v_dims) and not 'kapitel_nr' = any(v_dims) then
+    raise exception 'Titelgruppe nur zusammen mit kapitel_nr gruppieren' using errcode = '22023';
+  end if;
+  if v_filter ? 'titelgruppe_nr' and not v_filter ? 'kapitel_nr' then
+    raise exception 'Filter titelgruppe_nr nur zusammen mit Filter kapitel_nr' using errcode = '22023';
+  end if;
 
   -- Konto und Jahr je Ergebniszeile
   if not ('konto' = any(v_dims) or (v_filter ? 'konto' and jsonb_array_length(v_filter -> 'konto') = 1)) then
@@ -140,10 +153,12 @@ begin
     v_sel_final := v_sel_final || format('b.%I', v_d);
     v_group_final := v_group_final || format('b.%I', v_d);
     if c_texte ? v_d then
-      v_sel_basis := v_sel_basis || format('max(h.%1$I) as %1$I', c_texte ->> v_d);
+      v_sel_basis := v_sel_basis || format('min(h.%1$I) as %1$I', c_texte ->> v_d);
       v_sel_final := v_sel_final || format('(array_agg(b.%1$I order by b.b_jahr desc, b.%1$I))[1] as %1$I', c_texte ->> v_d);
     end if;
     if not v_d = any(c_ohne_vj_join) then
+      v_sel_vj := v_sel_vj || format('h.%I as %I', v_d, v_d);
+      v_group_vj := v_group_vj || format('h.%I', v_d);
       v_join_vj := v_join_vj || format(' and vj.%1$I is not distinct from b.%1$I', v_d);
     end if;
   end loop;
@@ -175,7 +190,7 @@ begin
   end loop;
 
   if p_order_by is not null then
-    v_order := v_order || format('f.%I %s nulls last', p_order_by, case when p_absteigend then 'desc' else 'asc' end);
+    v_order := v_order || format('f.%I %s nulls last', p_order_by, case when v_absteigend then 'desc' else 'asc' end);
   end if;
   foreach v_d in array v_dims loop
     v_order := v_order || format('f.%I', v_d);
@@ -191,7 +206,11 @@ begin
     || ' from semantic.stand($1) h where true {where} group by ' || array_to_string(v_group_basis, ', ');
 
   v_sql := 'with basis as (' || replace(v_basis, '{where}', v_where) || ')'
-    || case when v_braucht_vj then ', vorjahr as (' || replace(v_basis, '{where}', v_where_vj) || ')' else '' end
+    || case when v_braucht_vj then ', vorjahr as (select '
+         || array_to_string(v_sel_vj || array['h.jahr as b_jahr', 'h.konto as b_konto', 'sum(h.soll_eur) as soll',
+              'sum(h.ist_eur) as ist', 'bool_and(h.ist_verfuegbar) as ist_ok'], ', ')
+         || ' from semantic.stand($1) h where true' || v_where_vj || ' group by ' || array_to_string(v_group_vj, ', ') || ')'
+       else '' end
     || case when v_braucht_gesamt then
          ', gesamt as (select h.jahr as g_jahr, h.konto as g_konto, sum(h.soll_eur) as soll_gesamt, sum(h.ist_eur) as ist_gesamt,'
          || ' bool_and(h.ist_verfuegbar) as ist_ok_gesamt from semantic.stand($1) h group by h.jahr, h.konto)'
@@ -243,7 +262,7 @@ begin
     'semantik_version', v_sem,
     'vorlage', 'query_metric.v1',
     'parameter', jsonb_build_object('kennzahlen', to_jsonb(v_metrics), 'gruppierung', to_jsonb(v_dims), 'filter', v_filter,
-      'sortierung', p_order_by, 'absteigend', p_absteigend, 'limit', v_limit),
+      'sortierung', p_order_by, 'absteigend', v_absteigend, 'limit', v_limit),
     'einheiten', (select jsonb_object_agg(k.kennzahl_id, k.einheit) from semantic.kennzahl k
                   where k.semantik_version_id = v_sem and k.kennzahl_id = any(v_metrics)),
     'zeilen', v_zeilen,
