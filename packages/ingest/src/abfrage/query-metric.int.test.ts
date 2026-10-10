@@ -137,12 +137,44 @@ describe('api.query_metric', () => {
       ]);
     }));
 
+  it('verknüpft das Vorjahr auch bei leerer Titelgruppe und leerem Flexibilisierungskennzeichen', () =>
+    mitTestdaten(async (tx) => {
+      const titel: TestTitel[] = [
+        { jahr: 2024, titelKey: '140153201', soll: 100 * MRD, ist: 100 * MRD },
+        { jahr: 2025, titelKey: '140153201', soll: 120 * MRD, ist: 120 * MRD },
+        { jahr: 2024, titelKey: '140168401', soll: 10 * MRD, ist: 10 * MRD, titelgruppeNr: '01' },
+        { jahr: 2025, titelKey: '140168401', soll: 15 * MRD, ist: 15 * MRD, titelgruppeNr: '01' },
+      ];
+      await veroeffentlicheTitel(tx, titel);
+      const r = await abfrage(tx, { kennzahlen: ['soll', 'soll_vj_abs'], gruppierung: ['kapitel_nr', 'titelgruppe_nr'], filter: { konto: 'ausgaben', jahr: 2025 } });
+      expect(r.zeilen).toEqual([
+        { kapitel_nr: '1401', kapitel_text: 'Kapitel 1401', titelgruppe_nr: '01', titelgruppe_text: 'Titelgruppe 01', soll: 15 * MRD, soll_vj_abs: 5 * MRD },
+        { kapitel_nr: '1401', kapitel_text: 'Kapitel 1401', titelgruppe_nr: null, titelgruppe_text: null, soll: 120 * MRD, soll_vj_abs: 20 * MRD },
+      ]);
+      const f = await abfrage(tx, { kennzahlen: ['soll', 'soll_vj_abs'], gruppierung: ['flexibilisiert'], filter: { konto: 'ausgaben', jahr: 2025 } });
+      expect(f.zeilen).toEqual([{ flexibilisiert: null, soll: 135 * MRD, soll_vj_abs: 25 * MRD }]);
+    }));
+
   it('nimmt die Bezeichnung aus dem jüngsten Jahr der Gruppe', () =>
     mitTestdaten(async (tx) => {
       const r = await abfrage(tx, { kennzahlen: ['soll', 'titel_anzahl'], gruppierung: ['einzelplan_nr'], filter: { konto: 'ausgaben' } });
       expect(r.zeilen).toEqual([
         { einzelplan_nr: '06', einzelplan_text: 'Inneres', soll: 140 * MRD, titel_anzahl: 3 },
         { einzelplan_nr: '14', einzelplan_text: 'Verteidigung', soll: 450 * MRD, titel_anzahl: 4 },
+      ]);
+    }));
+
+  it('vergleicht mit dem Vorjahr auch bei Filter auf einen Jahresbereich', () =>
+    mitTestdaten(async (tx) => {
+      const r = await abfrage(tx, { kennzahlen: ['soll_vj_abs'], gruppierung: ['jahr'], filter: { konto: 'ausgaben', jahr_von: 2024, jahr_bis: 2025 } });
+      expect(r.zeilen).toEqual([
+        { jahr: 2024, soll_vj_abs: 70 * MRD },
+        { jahr: 2025, soll_vj_abs: 10 * MRD },
+      ]);
+      const l = await abfrage(tx, { kennzahlen: ['soll_vj_abs'], gruppierung: ['jahr'], filter: { konto: 'ausgaben', jahr: [2024, 2026] } });
+      expect(l.zeilen).toEqual([
+        { jahr: 2024, soll_vj_abs: 70 * MRD },
+        { jahr: 2026, soll_vj_abs: 40 * MRD },
       ]);
     }));
 
@@ -209,6 +241,7 @@ describe('api.query_metric', () => {
       const r = await abfrage(tx, { kennzahlen: ['soll'], filter: { konto: 'ausgaben', jahr: 1999 } });
       expect(r.zeilen).toEqual([]);
       expect(r.zeilen_gesamt).toBe(0);
+      expect(r.hinweise).toContain('Keine Zeilen für diese Auswahl.');
     }));
 
   it('Werte gehen als Parameter hinein', () =>
@@ -229,6 +262,10 @@ describe('api.query_metric', () => {
       ['leere Filterliste', { kennzahlen: ['soll'], filter: { konto: 'ausgaben', einzelplan_nr: [] } }, /einfacher Werte/],
       ['null als Filterwert', { kennzahlen: ['soll'], filter: { konto: 'ausgaben', einzelplan_nr: null } }, /einfacher Werte/],
       ['Jahr als Text', { kennzahlen: ['soll'], filter: { konto: 'ausgaben', jahr_von: '2024' } }, /Jahreszahl/],
+      ['Zahl für eine Textspalte', { kennzahlen: ['soll'], filter: { konto: 'ausgaben', einzelplan_nr: 6 } }, /Filter einzelplan_nr braucht Text, z\. B\. "06"/],
+      ['Zahl in einer Liste für eine Textspalte', { kennzahlen: ['soll'], filter: { konto: 'ausgaben', kapitel_nr: ['1401', 1402] } }, /Filter kapitel_nr braucht Text/],
+      ['Text als Jahr', { kennzahlen: ['soll'], filter: { konto: 'ausgaben', jahr: '2024' } }, /Filter jahr braucht eine Jahreszahl/],
+      ['Text für flexibilisiert', { kennzahlen: ['soll'], filter: { konto: 'ausgaben', flexibilisiert: 'true' } }, /Filter flexibilisiert braucht true oder false/],
       ['ohne Konto', { kennzahlen: ['soll'], gruppierung: ['jahr'] }, /Konto festlegen/],
       ['zwei Konten ohne Gruppierung', { kennzahlen: ['soll'], filter: { konto: ['ausgaben', 'einnahmen'] } }, /Konto festlegen/],
       ['je Kopf ohne einzelnes Jahr', { kennzahlen: ['soll_pro_kopf'], filter: { konto: 'ausgaben' } }, /einzelnes Jahr/],

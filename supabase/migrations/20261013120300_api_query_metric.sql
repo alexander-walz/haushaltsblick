@@ -22,6 +22,11 @@ declare
     "titelgruppe_nr": "titelgruppe_text", "titel_key": "titel_text", "hauptfunktion": "hauptfunktion_text",
     "oberfunktion": "oberfunktion_text", "fkt": "funktion_text", "hauptgruppe": "hauptgruppe_text",
     "obergruppe": "obergruppe_text", "gruppierung_nr": "gruppierung_text"}';
+  c_text_dims constant text[] := array['konto', 'einzelplan_nr', 'kapitel_nr', 'titelgruppe_nr', 'titel_key',
+    'hauptfunktion', 'oberfunktion', 'fkt', 'hauptgruppe', 'obergruppe', 'gruppierung_nr', 'haushaltsstand', 'soll_quelle'];
+  c_beispiel constant jsonb := '{"konto": "ausgaben", "einzelplan_nr": "06", "kapitel_nr": "0601", "titelgruppe_nr": "01",
+    "titel_key": "060168421", "hauptfunktion": "0", "oberfunktion": "01", "fkt": "011", "hauptgruppe": "6",
+    "obergruppe": "68", "gruppierung_nr": "684", "haushaltsstand": "Gesetz", "soll_quelle": "api"}';
   -- Für den Vorjahresvergleich nicht gleichsetzen: Jahr und Konto stehen in der Join-Bedingung, Stand und Quelle wechseln je Jahr.
   c_ohne_vj_join constant text[] := array['jahr', 'konto', 'haushaltsstand', 'soll_quelle'];
   c_ist constant text[] := array['ist', 'abweichung', 'abweichung_rel', 'ist_quote', 'ist_anteil', 'ist_pro_kopf',
@@ -38,6 +43,7 @@ declare
   v_wert jsonb;
   v_where text := '';
   v_where_vj text := '';
+  v_where_vj_jahr text := '';
   v_m text;
   v_d text;
   v_ausdruck text;
@@ -49,6 +55,7 @@ declare
   v_sel_final text[] := array[]::text[];
   v_group_final text[] := array[]::text[];
   v_order text[] := array[]::text[];
+  -- Nur Gleichheit, damit ein Hash-Join möglich ist; NULL-fähige Dimensionen über einen Textschlüssel (vk_*).
   v_join_vj text := 'vj.b_jahr = b.b_jahr - 1 and vj.b_konto = b.b_konto';
   v_braucht_vj boolean;
   v_braucht_gesamt boolean;
@@ -96,6 +103,8 @@ begin
       end if;
       v_filter := v_filter || jsonb_build_object(v_key, v_wert);
       v_where := v_where || format(' and h.jahr %s ($3->>%L)::integer', case when v_key = 'jahr_von' then '>=' else '<=' end, v_key);
+      v_where_vj_jahr := v_where_vj_jahr
+        || format(' and h.jahr %s ($3->>%L)::integer - 1', case when v_key = 'jahr_von' then '>=' else '<=' end, v_key);
     elsif v_key = any(c_dims) then
       if jsonb_typeof(v_wert) <> 'array' then
         v_wert := jsonb_build_array(v_wert);
@@ -104,10 +113,26 @@ begin
          or exists (select 1 from jsonb_array_elements(v_wert) e where jsonb_typeof(e) not in ('string', 'number', 'boolean')) then
         raise exception 'Filter % braucht einen Wert oder eine Liste einfacher Werte', v_key using errcode = '22023';
       end if;
+      -- Typ je Spalte: sonst vergliche etwa die Zahl 6 still mit '06' und das Ergebnis bliebe leer
+      if v_key = any(c_text_dims) and exists (select 1 from jsonb_array_elements(v_wert) e where jsonb_typeof(e) <> 'string') then
+        raise exception 'Filter % braucht Text, z. B. "%"', v_key, c_beispiel ->> v_key using errcode = '22023';
+      end if;
+      if v_key = 'jahr' and exists (select 1 from jsonb_array_elements(v_wert) e
+                                    where jsonb_typeof(e) <> 'number' or e::text !~ '^[0-9]{4}$') then
+        raise exception 'Filter jahr braucht eine Jahreszahl, z. B. 2024' using errcode = '22023';
+      end if;
+      if v_key = 'flexibilisiert' and exists (select 1 from jsonb_array_elements(v_wert) e where jsonb_typeof(e) <> 'boolean') then
+        raise exception 'Filter flexibilisiert braucht true oder false' using errcode = '22023';
+      end if;
       select jsonb_agg(x.e order by x.o) into v_wert
       from (select t.e, min(t.o) as o from jsonb_array_elements(v_wert) with ordinality as t(e, o) group by t.e) x;
       v_filter := v_filter || jsonb_build_object(v_key, v_wert);
-      v_where := v_where || format(' and h.%I::text = any(array(select jsonb_array_elements_text($3->%L)))', v_key, v_key);
+      if v_key = 'jahr' then
+        v_where := v_where || ' and h.jahr = any(array(select (jsonb_array_elements_text($3->''jahr''))::integer))';
+        v_where_vj_jahr := v_where_vj_jahr || ' and h.jahr = any(array(select (jsonb_array_elements_text($3->''jahr''))::integer - 1))';
+      else
+        v_where := v_where || format(' and h.%I::text = any(array(select jsonb_array_elements_text($3->%L)))', v_key, v_key);
+      end if;
       if v_key <> all(array['jahr', 'haushaltsstand', 'soll_quelle']) then
         v_where_vj := v_where_vj || format(' and h.%I::text = any(array(select jsonb_array_elements_text($3->%L)))', v_key, v_key);
       end if;
@@ -157,9 +182,11 @@ begin
       v_sel_final := v_sel_final || format('(array_agg(b.%1$I order by b.b_jahr desc, b.%1$I))[1] as %1$I', c_texte ->> v_d);
     end if;
     if not v_d = any(c_ohne_vj_join) then
-      v_sel_vj := v_sel_vj || format('h.%I as %I', v_d, v_d);
+      -- Textschlüssel statt is not distinct from: NULL wird zu '' (im Mart kommt kein leerer Text vor)
+      v_sel_basis := v_sel_basis || format('coalesce(h.%I::text, '''') as %I', v_d, 'vk_' || v_d);
+      v_sel_vj := v_sel_vj || format('coalesce(h.%I::text, '''') as %I', v_d, 'vk_' || v_d);
       v_group_vj := v_group_vj || format('h.%I', v_d);
-      v_join_vj := v_join_vj || format(' and vj.%1$I is not distinct from b.%1$I', v_d);
+      v_join_vj := v_join_vj || format(' and vj.%1$I = b.%1$I', 'vk_' || v_d);
     end if;
   end loop;
 
@@ -209,7 +236,7 @@ begin
     || case when v_braucht_vj then ', vorjahr as (select '
          || array_to_string(v_sel_vj || array['h.jahr as b_jahr', 'h.konto as b_konto', 'sum(h.soll_eur) as soll',
               'sum(h.ist_eur) as ist', 'bool_and(h.ist_verfuegbar) as ist_ok'], ', ')
-         || ' from semantic.stand($1) h where true' || v_where_vj || ' group by ' || array_to_string(v_group_vj, ', ') || ')'
+         || ' from semantic.stand($1) h where true' || v_where_vj || v_where_vj_jahr || ' group by ' || array_to_string(v_group_vj, ', ') || ')'
        else '' end
     || case when v_braucht_gesamt then
          ', gesamt as (select h.jahr as g_jahr, h.konto as g_konto, sum(h.soll_eur) as soll_gesamt, sum(h.ist_eur) as ist_gesamt,'
@@ -252,6 +279,9 @@ begin
   end if;
   if v_entwurf then
     v_hinweise := array_append(v_hinweise, 'Enthält den Regierungsentwurf: noch kein beschlossener Haushalt.');
+  end if;
+  if v_gesamt = 0 then
+    v_hinweise := array_append(v_hinweise, 'Keine Zeilen für diese Auswahl.');
   end if;
   if v_gesamt > v_limit then
     v_hinweise := array_append(v_hinweise, format('Ergebnis auf %s von %s Zeilen gekürzt.', v_limit, v_gesamt));

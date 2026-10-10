@@ -29,6 +29,17 @@ Quellen: `data/raw/p4-veroeffentlichung.md` (Version 698), `data/raw/p4-abnahme.
 
 Die Zeiten stammen aus `\timing` in psql als Rolle `postgres`. Das Rollenlimit von `anon` (3 s) wird mit großem Abstand eingehalten.
 
+### Laufzeit Vorjahr auf Titelebene
+
+Das abschließende Review fand den Vorjahres-Join zu langsam: Er verknüpfte die Gruppierungen mit `is not distinct from`, das kein Gleichheitsoperator ist. Postgres konnte weder Hash- noch Merge-Join bilden und prüfte jedes Paar. Jetzt verknüpft er nur mit `=` über einen Textschlüssel je Gruppierung (`coalesce(x::text, '')`, damit leere `titelgruppe_nr` und `flexibilisiert` weiter treffen; im Mart kommt kein leerer Text vor). Bei einem Jahresfilter liest das Vorjahr nur die nötigen Jahre (gefilterte Jahre minus 1, `jahr_von - 1`, `jahr_bis - 1`).
+
+| Abfrage (als `anon`, Version 698) | vorher | nachher |
+| --- | --- | --- |
+| `query_metric('{soll_vj_abs}', '{titel_key}', '{"konto":"ausgaben","jahr":2026}', 'soll_vj_abs', true, 10)` | 2.753 ms | 49 ms |
+| `query_metric('{soll,soll_vj_abs,soll_anteil}', '{jahr,titel_key}', '{"konto":"ausgaben"}', null, true, 500)` (83.082 Zeilen, alle Jahre) | 29.220 ms | 740 ms |
+
+Gemessen mit `\timing` in psql, `set role anon`, für die alte Fassung mit `statement_timeout = 0`. Die zweite Abfrage ist der ungünstigste Fall: alle Titel über alle Jahre mit Vorjahr und Anteil. Den Rest der Zeit kosten Verdichtung und Sortierung auf Platte (`work_mem` 4 MB), nicht mehr der Join.
+
 Lokal hat das Soll 2012 bis 2022 die Quelle XML (`soll_quelle = 'xml'`, Haushaltsstand „nur Haushaltsplan-XML“), und das Ist dieser Jahre ist nicht verfügbar. Abweichung und Ist-Quote bleiben dort leer.
 
 ## Suche und Lineage
@@ -47,6 +58,8 @@ Lokal hat das Soll 2012 bis 2022 die Quelle XML (`soll_quelle = 'xml'`, Haushalt
 - `query_metric`, Bezeichnung: Bei Gleichstand im selben Jahr gilt der alphabetisch erste Text.
 - `query_metric`, Titelgruppe: `titelgruppe_nr` gibt es nur zusammen mit `kapitel_nr` (Gruppierung bzw. Filter).
 - `query_metric`, Filter: Filterlisten werden dedupliziert, `p_absteigend` null bedeutet absteigend.
+- `query_metric`, Filtertypen: Textschlüssel verlangen JSON-Text, `jahr` eine Zahl, `flexibilisiert` true oder false (sonst Fehler 22023, z. B. „Filter einzelplan_nr braucht Text, z. B. "06"“). Ein leeres Ergebnis trägt den Hinweis „Keine Zeilen für diese Auswahl.“
+- `get_glossar`: Der Begriff hat höchstens 200 Zeichen, wie bei der Suche.
 - `search_entities`: Texttreffer zählen höchstens 0,9 (1,0 nur bei exakt gleichem Text). Bei gleicher Ähnlichkeit gilt schluessel vor synonym vor text. Der Suchbegriff hat höchstens 200 Zeichen.
 - Rechte: Default-Privilegien je Schema wirken in Postgres nicht (das Ausführungsrecht für PUBLIC ist global). Jede Funktion entzieht PUBLIC ausdrücklich das Ausführungsrecht, ein Wächtertest in `grundlagen.int.test.ts` prüft das.
 
@@ -73,6 +86,5 @@ Keine. Alle Synonym-Zeilen bestanden DQ-19 in Task 1 ohne Änderung; nichts wurd
 - **Suche nach Nummer:** Einstellige Hauptfunktionen und Hauptgruppen sind nicht über ihre Nummer auffindbar.
 - **Suchschwelle:** Die Schwelle 0,35 lässt Rauschen durch (Beispiel „Bürgergeld“ mit 0,6 auf Bezüge der Bundespräsidentin). Schwelle anheben und an Echtdaten prüfen.
 - **Lineage-Lücken:** Die Kette endet stumm an Lücken (21 Fälle in den Echtdaten). Ein Hinweis in `hinweise` fehlt.
-- **Filter mit Zahl:** Eine Zahl als Filterwert für eine Textspalte (z. B. `"einzelplan_nr": 6`) liefert still ein leeres Ergebnis. Besser: als Fehler melden oder auf zwei Stellen normieren.
 - **Vorjahr mit Stand oder Quelle:** Beim Vorjahresvergleich mit Gruppierung nach `soll_quelle` oder `haushaltsstand` wird ein Teil mit dem ganzen Vorjahr verglichen. Ein Hinweis fehlt.
 - **Lokale Daten:** API-Soll, API-Ist und Systematik 2012 bis 2022 lokal nachladen, damit lokale Abnahmen ohne `dq13_ab_jahr` laufen.

@@ -14,6 +14,8 @@ export type TestTitel = {
   titelText?: string;
   einzelplanText?: string;
   kapitelText?: string;
+  /** Fehlt titelgruppeNr, bleibt die Titelgruppe NULL. */
+  titelgruppeNr?: string;
   fkt?: string;
   funktionText?: string;
   haushaltsstand?: string;
@@ -40,7 +42,7 @@ export async function veroeffentlicheTitel(tx: Sql, titel: readonly TestTitel[])
     await tx`
       insert into mart.fct_titel_jahr (
         jahr, konto, titel_key, einzelplan_nr, einzelplan_text, kapitel_nr, kapitel_text, titel_nr, titel_text,
-        fkt, funktion_text, oberfunktion, hauptfunktion, gruppierung_nr, obergruppe, hauptgruppe,
+        titelgruppe_nr, titelgruppe_text, fkt, funktion_text, oberfunktion, hauptfunktion, gruppierung_nr, obergruppe, hauptgruppe,
         soll_eur, soll_quelle, soll_xml_eur, ist_eur, ist_verfuegbar, abweichung_eur, ist_quote,
         haushaltsstand, seite, im_haushaltsplan_xml, zeilen_hash)
       values (
@@ -48,7 +50,7 @@ export async function veroeffentlicheTitel(tx: Sql, titel: readonly TestTitel[])
         ${t.titelKey.slice(0, 2)}, ${t.einzelplanText ?? `Einzelplan ${t.titelKey.slice(0, 2)}`},
         ${t.titelKey.slice(0, 4)}, ${t.kapitelText ?? `Kapitel ${t.titelKey.slice(0, 4)}`},
         ${titelNr}, ${t.titelText ?? `Titel ${t.titelKey}`},
-        ${fkt}, ${t.funktionText ?? null}, ${fkt.slice(0, 2)}, ${fkt.slice(0, 1)},
+        ${t.titelgruppeNr ?? null}, ${t.titelgruppeNr === undefined ? null : `Titelgruppe ${t.titelgruppeNr}`}, ${fkt}, ${t.funktionText ?? null}, ${fkt.slice(0, 2)}, ${fkt.slice(0, 1)},
         ${titelNr.slice(0, 3)}, ${titelNr.slice(0, 2)}, ${titelNr.slice(0, 1)},
         ${t.soll}, ${quelle}, ${t.sollXml ?? (quelle === 'xml' ? t.soll : null)},
         ${t.ist ?? null}, ${istVerfuegbar}, ${abweichung}, ${istQuote},
