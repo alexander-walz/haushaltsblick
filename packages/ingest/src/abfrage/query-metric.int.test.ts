@@ -1,0 +1,230 @@
+import { describe, expect, it } from 'vitest';
+import type { Sql } from '../db/client';
+import { imRollback } from '../db/test-hilfen';
+import { leereMart, veroeffentlicheTitel, type TestTitel } from './testdaten';
+
+const MRD = 1e9;
+
+// Zwei Ausgabetitel 2023 bis 2026 (2023 mit Soll aus der XML, 2026 ohne Ist) und ein Einnahmetitel 2024.
+const TITEL: TestTitel[] = [
+  { jahr: 2023, titelKey: '140153201', soll: 80 * MRD, ist: 85 * MRD, sollQuelle: 'xml', einzelplanText: 'Verteidigung', titelText: 'Beschaffung von Flugzeugen' },
+  { jahr: 2024, titelKey: '140153201', soll: 100 * MRD, ist: 90 * MRD, einzelplanText: 'Verteidigung', titelText: 'Beschaffung von Flugzeugen' },
+  { jahr: 2025, titelKey: '140153201', soll: 120 * MRD, ist: 110 * MRD, einzelplanText: 'Verteidigung', titelText: 'Beschaffung von Flugzeugen' },
+  { jahr: 2026, titelKey: '140153201', soll: 150 * MRD, einzelplanText: 'Verteidigung', titelText: 'Beschaffung von Flugzeugen' },
+  { jahr: 2024, titelKey: '060168421', soll: 50 * MRD, ist: 70 * MRD, einzelplanText: 'Inneres, Bau und Heimat', titelText: 'Zuschüsse an die Bundespolizei' },
+  { jahr: 2025, titelKey: '060168421', soll: 40 * MRD, ist: 30 * MRD, einzelplanText: 'Inneres', titelText: 'Zuschüsse an die Bundespolizei' },
+  { jahr: 2026, titelKey: '060168421', soll: 50 * MRD, einzelplanText: 'Inneres', titelText: 'Zuschüsse an die Bundespolizei' },
+  { jahr: 2024, titelKey: '600101101', konto: 'einnahmen', soll: 150 * MRD, ist: 150 * MRD },
+];
+
+type Ergebnis = {
+  version: number;
+  semantik_version: number;
+  vorlage: string;
+  parameter: Record<string, unknown>;
+  einheiten: Record<string, string>;
+  zeilen: Record<string, unknown>[];
+  zeilen_gesamt: number;
+  hinweise: string[];
+};
+
+type Abfrage = {
+  kennzahlen: string[];
+  gruppierung?: string[];
+  filter?: Record<string, unknown>;
+  sortierung?: string | null;
+  absteigend?: boolean;
+  limit?: number;
+  version?: number | null;
+};
+
+async function abfrage(tx: Sql, a: Abfrage): Promise<Ergebnis> {
+  const filter = tx.json((a.filter ?? {}) as Parameters<Sql['json']>[0]);
+  const [z] = await tx`
+    select api.query_metric(${a.kennzahlen}::text[], ${a.gruppierung ?? []}::text[], ${filter}::jsonb,
+      ${a.sortierung ?? null}::text, ${a.absteigend ?? true}::boolean, ${a.limit ?? 50}::integer, ${a.version ?? null}::bigint) as r`;
+  return z!.r as Ergebnis;
+}
+
+async function mitTestdaten(fn: (tx: Sql, version: number) => Promise<void>): Promise<void> {
+  await imRollback(async (tx) => {
+    await leereMart(tx);
+    const version = await veroeffentlicheTitel(tx, TITEL);
+    await fn(tx, version);
+  });
+}
+
+describe('api.query_metric', () => {
+  it('summiert das Soll je Jahr', () =>
+    mitTestdaten(async (tx, version) => {
+      const r = await abfrage(tx, { kennzahlen: ['soll'], gruppierung: ['jahr'], filter: { konto: 'ausgaben' } });
+      expect(r.version).toBe(version);
+      expect(r.vorlage).toBe('query_metric.v1');
+      expect(r.einheiten).toEqual({ soll: 'EUR' });
+      expect(r.zeilen).toEqual([
+        { jahr: 2023, soll: 80 * MRD },
+        { jahr: 2024, soll: 150 * MRD },
+        { jahr: 2025, soll: 160 * MRD },
+        { jahr: 2026, soll: 200 * MRD },
+      ]);
+      expect(r.parameter.filter).toEqual({ konto: ['ausgaben'] });
+    }));
+
+  it('zeigt fehlendes Ist als null, nie als 0', () =>
+    mitTestdaten(async (tx) => {
+      const r = await abfrage(tx, { kennzahlen: ['ist'], gruppierung: ['jahr'], filter: { konto: 'ausgaben' } });
+      expect(r.zeilen).toEqual([
+        { jahr: 2023, ist: 85 * MRD },
+        { jahr: 2024, ist: 160 * MRD },
+        { jahr: 2025, ist: 140 * MRD },
+        { jahr: 2026, ist: null },
+      ]);
+      expect(r.hinweise.some((h) => h.includes('nie 0'))).toBe(true);
+    }));
+
+  it('Ist über verfügbare und nicht verfügbare Jahre bleibt null', () =>
+    mitTestdaten(async (tx) => {
+      const r = await abfrage(tx, { kennzahlen: ['soll', 'ist'], filter: { konto: 'ausgaben', jahr_von: 2025 } });
+      expect(r.zeilen).toEqual([{ soll: 360 * MRD, ist: null }]);
+    }));
+
+  it('Abweichung nur mit Soll aus der internalapi', () =>
+    mitTestdaten(async (tx) => {
+      const r = await abfrage(tx, { kennzahlen: ['abweichung', 'abweichung_rel', 'ist_quote'], gruppierung: ['jahr'], filter: { konto: 'ausgaben' } });
+      expect(r.zeilen).toEqual([
+        { jahr: 2023, abweichung: null, abweichung_rel: null, ist_quote: null },
+        { jahr: 2024, abweichung: 10 * MRD, abweichung_rel: 0.066667, ist_quote: 1.066667 },
+        { jahr: 2025, abweichung: -20 * MRD, abweichung_rel: -0.125, ist_quote: 0.875 },
+        { jahr: 2026, abweichung: null, abweichung_rel: null, ist_quote: null },
+      ]);
+      expect(r.hinweise.some((h) => h.includes('Haushaltsplan (XML)'))).toBe(true);
+    }));
+
+  it('bezieht den Anteil auf den ganzen Haushalt, auch bei Filter auf einen Einzelplan', () =>
+    mitTestdaten(async (tx) => {
+      const r = await abfrage(tx, { kennzahlen: ['soll_anteil', 'ist_anteil'], filter: { konto: 'ausgaben', jahr: 2024, einzelplan_nr: '14' } });
+      expect(r.zeilen).toEqual([{ soll_anteil: 0.666667, ist_anteil: 0.5625 }]);
+    }));
+
+  it('rechnet je Kopf und je Tag, mit fortgeschriebener Einwohnerzahl', () =>
+    mitTestdaten(async (tx) => {
+      const r = await abfrage(tx, { kennzahlen: ['soll_pro_kopf', 'soll_pro_tag'], gruppierung: ['jahr'], filter: { konto: 'ausgaben', jahr: [2024, 2026] } });
+      expect(r.zeilen).toEqual([
+        { jahr: 2024, soll_pro_kopf: 1797.35, soll_pro_tag: 409836065.57 },
+        { jahr: 2026, soll_pro_kopf: 2393, soll_pro_tag: 547945205.48 },
+      ]);
+      expect(r.hinweise.some((h) => h.includes('fortgeschrieben'))).toBe(true);
+    }));
+
+  it('vergleicht mit dem Vorjahr', () =>
+    mitTestdaten(async (tx) => {
+      const r = await abfrage(tx, { kennzahlen: ['soll_vj_abs', 'soll_vj_rel', 'ist_vj_abs'], gruppierung: ['jahr'], filter: { konto: 'ausgaben' } });
+      expect(r.zeilen).toEqual([
+        { jahr: 2023, soll_vj_abs: null, soll_vj_rel: null, ist_vj_abs: null },
+        { jahr: 2024, soll_vj_abs: 70 * MRD, soll_vj_rel: 0.875, ist_vj_abs: 75 * MRD },
+        { jahr: 2025, soll_vj_abs: 10 * MRD, soll_vj_rel: 0.066667, ist_vj_abs: -20 * MRD },
+        { jahr: 2026, soll_vj_abs: 40 * MRD, soll_vj_rel: 0.25, ist_vj_abs: null },
+      ]);
+      expect(r.hinweise.some((h) => h.includes('Ressortwechsel'))).toBe(true);
+    }));
+
+  it('vergleicht mit dem Vorjahr auch bei Filter auf ein einzelnes Jahr', () =>
+    mitTestdaten(async (tx) => {
+      const r = await abfrage(tx, { kennzahlen: ['soll', 'soll_vj_abs'], gruppierung: ['einzelplan_nr'], filter: { konto: 'ausgaben', jahr: 2025 } });
+      expect(r.zeilen).toEqual([
+        { einzelplan_nr: '06', einzelplan_text: 'Inneres', soll: 40 * MRD, soll_vj_abs: -10 * MRD },
+        { einzelplan_nr: '14', einzelplan_text: 'Verteidigung', soll: 120 * MRD, soll_vj_abs: 20 * MRD },
+      ]);
+    }));
+
+  it('nimmt die Bezeichnung aus dem jüngsten Jahr der Gruppe', () =>
+    mitTestdaten(async (tx) => {
+      const r = await abfrage(tx, { kennzahlen: ['soll', 'titel_anzahl'], gruppierung: ['einzelplan_nr'], filter: { konto: 'ausgaben' } });
+      expect(r.zeilen).toEqual([
+        { einzelplan_nr: '06', einzelplan_text: 'Inneres', soll: 140 * MRD, titel_anzahl: 3 },
+        { einzelplan_nr: '14', einzelplan_text: 'Verteidigung', soll: 450 * MRD, titel_anzahl: 4 },
+      ]);
+    }));
+
+  it('sortiert, begrenzt und nennt die Kürzung', () =>
+    mitTestdaten(async (tx) => {
+      const r = await abfrage(tx, { kennzahlen: ['soll'], gruppierung: ['titel_key'], filter: { konto: 'ausgaben', jahr: 2024 }, sortierung: 'soll', limit: 1 });
+      expect(r.zeilen).toEqual([{ titel_key: '140153201', titel_text: 'Beschaffung von Flugzeugen', soll: 100 * MRD }]);
+      expect(r.zeilen_gesamt).toBe(2);
+      expect(r.hinweise).toContain('Ergebnis auf 1 von 2 Zeilen gekürzt.');
+      const auf = await abfrage(tx, { kennzahlen: ['soll'], gruppierung: ['titel_key'], filter: { konto: 'ausgaben', jahr: 2024 }, sortierung: 'soll', absteigend: false });
+      expect(auf.zeilen.map((z) => z.titel_key)).toEqual(['060168421', '140153201']);
+    }));
+
+  it('gruppiert nach Konto ohne Kontofilter', () =>
+    mitTestdaten(async (tx) => {
+      const r = await abfrage(tx, { kennzahlen: ['soll'], gruppierung: ['konto'], filter: { jahr: 2024 } });
+      expect(r.zeilen).toEqual([
+        { konto: 'ausgaben', soll: 150 * MRD },
+        { konto: 'einnahmen', soll: 150 * MRD },
+      ]);
+    }));
+
+  it('liefert eine frühere Version unverändert', () =>
+    mitTestdaten(async (tx, v1) => {
+      const geaendert = TITEL.map((t) => (t.jahr === 2024 && t.titelKey === '140153201' ? { ...t, soll: 101 * MRD } : t));
+      const v2 = await veroeffentlicheTitel(tx, geaendert);
+      const alt = await abfrage(tx, { kennzahlen: ['soll'], filter: { konto: 'ausgaben', jahr: 2024 }, version: v1 });
+      const neu = await abfrage(tx, { kennzahlen: ['soll'], filter: { konto: 'ausgaben', jahr: 2024 } });
+      expect(alt.version).toBe(v1);
+      expect(alt.zeilen).toEqual([{ soll: 150 * MRD }]);
+      expect(neu.version).toBe(v2);
+      expect(neu.zeilen).toEqual([{ soll: 151 * MRD }]);
+    }));
+
+  it('liefert ohne Treffer keine Zeile', () =>
+    mitTestdaten(async (tx) => {
+      const r = await abfrage(tx, { kennzahlen: ['soll'], filter: { konto: 'ausgaben', jahr: 1999 } });
+      expect(r.zeilen).toEqual([]);
+      expect(r.zeilen_gesamt).toBe(0);
+    }));
+
+  it('Werte gehen als Parameter hinein', () =>
+    mitTestdaten(async (tx) => {
+      const r = await abfrage(tx, { kennzahlen: ['soll'], filter: { konto: 'ausgaben', einzelplan_nr: ["14' or '1'='1"] } });
+      expect(r.zeilen).toEqual([]);
+      const [n] = await tx`select count(*)::int as n from mart.fct_titel_jahr_hist`;
+      expect(n!.n).toBeGreaterThan(0);
+    }));
+
+  describe('lehnt unzulässige Eingaben ab', () => {
+    const faelle: [string, Abfrage, RegExp][] = [
+      ['ohne Kennzahl', { kennzahlen: [], filter: { konto: 'ausgaben' } }, /Mindestens eine Kennzahl/],
+      ['unbekannte Kennzahl', { kennzahlen: ['cagr'], filter: { konto: 'ausgaben' } }, /Unbekannte Kennzahl: cagr/],
+      ['Gruppierung mit SQL', { kennzahlen: ['soll'], gruppierung: ['jahr; drop table mart.fct_titel_jahr_hist'], filter: { konto: 'ausgaben' } }, /Unzulässige Gruppierung/],
+      ['Filter auf unbekannte Spalte', { kennzahlen: ['soll'], filter: { konto: 'ausgaben', titel_text: 'x' } }, /Unzulässiger Filter: titel_text/],
+      ['verschachtelter Filterwert', { kennzahlen: ['soll'], filter: { konto: 'ausgaben', einzelplan_nr: { a: 1 } } }, /einfacher Werte/],
+      ['leere Filterliste', { kennzahlen: ['soll'], filter: { konto: 'ausgaben', einzelplan_nr: [] } }, /einfacher Werte/],
+      ['null als Filterwert', { kennzahlen: ['soll'], filter: { konto: 'ausgaben', einzelplan_nr: null } }, /einfacher Werte/],
+      ['Jahr als Text', { kennzahlen: ['soll'], filter: { konto: 'ausgaben', jahr_von: '2024' } }, /Jahreszahl/],
+      ['ohne Konto', { kennzahlen: ['soll'], gruppierung: ['jahr'] }, /Konto festlegen/],
+      ['zwei Konten ohne Gruppierung', { kennzahlen: ['soll'], filter: { konto: ['ausgaben', 'einnahmen'] } }, /Konto festlegen/],
+      ['je Kopf ohne einzelnes Jahr', { kennzahlen: ['soll_pro_kopf'], filter: { konto: 'ausgaben' } }, /einzelnes Jahr/],
+      ['Sortierung nach nicht angefragter Kennzahl', { kennzahlen: ['soll'], filter: { konto: 'ausgaben' }, sortierung: 'ist' }, /Sortierung nur nach/],
+    ];
+    for (const [name, a, fehler] of faelle) {
+      it(name, () =>
+        mitTestdaten(async (tx) => {
+          await expect(abfrage(tx, a)).rejects.toThrow(fehler);
+        }));
+    }
+  });
+
+  it('kürzt zu große Limits auf 500', () =>
+    mitTestdaten(async (tx) => {
+      const r = await abfrage(tx, { kennzahlen: ['soll'], filter: { konto: 'ausgaben' }, limit: 100000 });
+      expect(r.parameter.limit).toBe(500);
+    }));
+
+  it('darf von anon ausgeführt werden', () =>
+    mitTestdaten(async (tx) => {
+      await tx`set local role anon`;
+      const r = await abfrage(tx, { kennzahlen: ['soll'], filter: { konto: 'ausgaben', jahr: 2024 } });
+      expect(r.zeilen).toEqual([{ soll: 150 * MRD }]);
+    }));
+});
