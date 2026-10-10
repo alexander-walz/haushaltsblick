@@ -10,6 +10,7 @@ const TITEL: TestTitel[] = [
   { jahr: 2024, titelKey: '060168421', soll: 50 * MRD, einzelplanText: 'Bundesministerium des Innern', kapitelText: 'Bundespolizei', titelText: 'Zuschüsse an die Bundespolizei', fkt: '042', funktionText: 'Polizei' },
   { jahr: 2022, titelKey: '110168101', soll: 20 * MRD, einzelplanText: 'Bundesministerium für Arbeit und Soziales', titelText: 'Arbeitslosengeld II', fkt: '251', funktionText: 'Arbeitslosengeld II nach dem SGB II' },
   { jahr: 2024, titelKey: '110168101', soll: 26 * MRD, einzelplanText: 'Bundesministerium für Arbeit und Soziales', titelText: 'Bürgergeld', fkt: '251', funktionText: 'Arbeitslosengeld II nach dem SGB II' },
+  { jahr: 2024, titelKey: '140142201', soll: 5 * MRD, einzelplanText: 'Bundesministerium der Verteidigung', kapitelText: 'Bundeswehr', titelText: 'Globale Mehrausgaben für Personalausgaben', fkt: '032', funktionText: 'Deutsche Verteidigungsstreitkräfte' },
   { jahr: 2026, titelKey: '140153201', soll: 150 * MRD, einzelplanText: 'Bundesministerium der Verteidigung', titelText: 'Beschaffung von Flugzeugen', fkt: '032' },
 ];
 
@@ -37,7 +38,7 @@ describe('api.search_entities', () => {
       expect(r.jahr).toBe(2024);
       expect(r.treffer[0]).toEqual({
         typ: 'einzelplan', konto: 'ausgaben', schluessel: '14', bezeichnung: 'Bundesministerium der Verteidigung',
-        soll_eur: 100 * MRD, aehnlichkeit: 1, treffer: 'synonym', filter: { einzelplan_nr: '14', konto: 'ausgaben' },
+        soll_eur: 105 * MRD, aehnlichkeit: 1, treffer: 'synonym', filter: { einzelplan_nr: '14', konto: 'ausgaben' },
       });
     }));
 
@@ -101,6 +102,17 @@ describe('api.search_entities', () => {
   it('lehnt zu kurze Suchbegriffe ab', () =>
     mitTestdaten(async (tx) => {
       await expect(suche(tx, ' x ')).rejects.toThrow(/zu kurz/);
+    }));
+
+  it('lehnt zu lange Suchbegriffe ab', () =>
+    mitTestdaten(async (tx) => {
+      await expect(suche(tx, 'a'.repeat(201))).rejects.toThrow(/zu lang/);
+    }));
+
+  it('Synonym geht vor Text', () =>
+    mitTestdaten(async (tx) => {
+      const r = await suche(tx, 'Personalausgaben', { jahr: 2024 });
+      expect(r.treffer[0]).toMatchObject({ typ: 'hauptgruppe', schluessel: '4', treffer: 'synonym' });
     }));
 
   it('lehnt unbekannte Typen ab', () =>

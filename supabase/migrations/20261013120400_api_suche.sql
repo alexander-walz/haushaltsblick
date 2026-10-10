@@ -1,6 +1,6 @@
 -- Plan 4: Freitextsuche über Einzelpläne, Kapitel, Titel, Funktionen und Gruppierungen eines Jahres,
 -- mit Synonymen der Semantik-Version und Trigramm-Ähnlichkeit (pg_trgm).
-create function api.search_entities(
+create or replace function api.search_entities(
   p_q       text,
   p_jahr    integer default null,
   p_typ     text    default null,
@@ -26,6 +26,9 @@ declare
   v_jahr integer;
   v_treffer jsonb;
 begin
+  if length(coalesce(p_q, '')) > 200 then
+    raise exception 'Suchbegriff zu lang (höchstens 200 Zeichen)' using errcode = '22023';
+  end if;
   if length(v_q) < 2 then
     raise exception 'Suchbegriff zu kurz (mindestens zwei Zeichen)' using errcode = '22023';
   end if;
@@ -92,8 +95,10 @@ begin
       select n.*,
              case when n.schluessel = v_schluessel then 1.0 end as w_schluessel,
              sy.wert as w_synonym,
-             greatest(similarity(v_q, n.n), word_similarity(v_q, n.n),
-                      case when n.n <> '' and position(v_q in n.n) > 0 then 0.8 else 0 end)::numeric as w_text
+             case when n.n = v_q then 1.0
+                  else least(0.9, greatest(similarity(v_q, n.n), word_similarity(v_q, n.n),
+                      case when n.n <> '' and position(v_q in n.n) > 0 then 0.8 else 0 end))::numeric
+             end as w_text
       from normiert n
       left join synonyme sy on sy.typ = n.typ and sy.konto = n.konto and sy.schluessel = n.schluessel
     ) x
@@ -105,7 +110,9 @@ begin
   into v_treffer
   from (
     select b.*, row_number() over (
-             order by b.aehnlichkeit desc, array_position(c_typen, b.typ), abs(b.soll) desc nulls last, b.schluessel) as rang
+             order by b.aehnlichkeit desc,
+                      case b.treffer when 'schluessel' then 1 when 'synonym' then 2 else 3 end,
+                      array_position(c_typen, b.typ), abs(b.soll) desc nulls last, b.schluessel) as rang
     from bewertet b
     where b.aehnlichkeit >= 0.35
     order by rang
