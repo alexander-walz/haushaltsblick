@@ -91,6 +91,29 @@ describe('Grundlagen der Abfrageschicht', () => {
     }));
 
   describe('Rechte für anon', () => {
+    it('keine Funktion in api oder semantic ist für PUBLIC ausführbar', () =>
+      imRollback(async (tx) => {
+        const zeilen = await tx`
+          select n.nspname || '.' || p.proname as name
+          from pg_proc p
+          join pg_namespace n on n.oid = p.pronamespace
+          where n.nspname in ('api', 'semantic')
+            and exists (
+              select 1 from aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+              where a.grantee = 0 and a.privilege_type = 'EXECUTE')
+          order by 1`;
+        expect(zeilen.map((z) => z.name)).toEqual([]);
+      }));
+
+    it('alle Funktionen in api sind security definer mit festem search_path', () =>
+      imRollback(async (tx) => {
+        const zeilen = await tx`
+          select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+          where n.nspname = 'api' and (not p.prosecdef or p.proconfig is null
+            or not exists (select 1 from unnest(p.proconfig) c where c like 'search_path=%'))`;
+        expect(zeilen.map((z) => z.proname)).toEqual([]);
+      }));
+
     it('darf die Funktionen in api ausführen', () =>
       imRollback(async (tx) => {
         await leereMart(tx);

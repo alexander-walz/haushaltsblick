@@ -10,9 +10,8 @@ begin
   end if;
 end $$;
 
--- Funktionen sind in Postgres standardmäßig für public ausführbar: für api und semantic abschalten.
-alter default privileges in schema api revoke execute on functions from public;
-alter default privileges in schema semantic revoke execute on functions from public;
+-- Funktionen sind in Postgres standardmäßig für PUBLIC ausführbar, deshalb entzieht jede Funktion in api und semantic
+-- das Recht ausdrücklich mit revoke. Ein Test wacht darüber.
 grant usage on schema api to anon, authenticated, service_role;
 
 -- Für die Titel-Lineage (Task 7): Titel gleicher Nummer über die Jahre.
