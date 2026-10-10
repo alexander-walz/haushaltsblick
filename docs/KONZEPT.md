@@ -498,16 +498,24 @@ Die Schichten `core` und `mart` entstehen ausschließlich über dbt. Die folgend
 ### Semantik-, Qualitäts- und Audit-Tabellen
 
 ```sql
--- Kennzahlenkatalog (Inhalt in Abschnitt 10)
-create table semantic.metric_definition (
-  metric_id     text primary key,          -- z. B. ist_quote
-  name_de       text not null,
-  definition    text not null,
-  formel        text not null,             -- lesbare Formel
-  sql_ausdruck  text not null,             -- Ausdruck auf mart.fct_titel_jahr
-  einheit       text not null check (einheit in ('eur','prozent','faktor')),
-  version       integer not null default 1,
-  gueltig_ab    date not null default current_date
+-- Kennzahlenkatalog (Inhalt in Abschnitt 10), je Semantik-Version unveränderlich (Roadmap E19).
+-- Quelle ist der Seed dbt/seeds/semantik_kennzahlen.csv; ops.sichere_semantik() legt bei jeder
+-- Veröffentlichung eine neue Semantik-Version an, wenn sich der Inhalt geändert hat.
+create table semantic.semantik_version (
+  semantik_version_id bigint generated always as identity primary key,
+  erstellt_am         timestamptz not null default now(),
+  inhalt_hash         text not null unique
+);
+create table semantic.kennzahl (
+  semantik_version_id bigint not null references semantic.semantik_version,
+  kennzahl_id         text not null,           -- z. B. ist_quote
+  name                text not null,
+  definition          text not null,
+  formel              text not null,           -- lesbare Formel; berechnet wird in api.query_metric
+  einheit             text not null check (einheit in ('EUR', 'Anteil', 'Anzahl')),
+  braucht_jahr        boolean not null,
+  reihenfolge         integer not null,
+  primary key (semantik_version_id, kennzahl_id)
 );
 
 -- Synonyme für die Entitätsauflösung ("Bundeswehr" -> Einzelplan 14)
@@ -845,7 +853,7 @@ Alle Beträge sind nominal. Ist-Werte des laufenden Jahres gelten als „nicht v
 | Ökonomisch | Hauptgruppe, Obergruppe, Gruppierung | `hauptgruppe`, `obergruppe`, `gruppierung_nr` |
 | Merkmale | Flexibilisiert, Haushaltsstand, Quelle des Solls | `flexibilisiert`, `haushaltsstand`, `soll_quelle` |
 
-Jede Dimension ist auch Filter (ein Wert oder eine Liste einfacher Werte). Dazu kommen die Filter `jahr_von` und `jahr_bis` (Jahreszahl, jeweils einschließlich).
+Jede Dimension ist auch Filter (ein Wert oder eine Liste einfacher Werte). Textschlüssel verlangen JSON-Text (`"einzelplan_nr": "06"`, nicht `6`), `jahr` eine Zahl und `flexibilisiert` true oder false; sonst `errcode 22023`. Dazu kommen die Filter `jahr_von` und `jahr_bis` (Jahreszahl, jeweils einschließlich).
 
 ### Abfragefunktion für Dashboard und Agent
 
@@ -872,7 +880,7 @@ grant execute on function api.query_metric(text[], text[], jsonb, text, boolean,
   to anon, authenticated, service_role;
 ```
 
-Regeln: Das Konto muss feststehen, über den Filter `konto` mit genau einem Wert oder über die Gruppierung nach `konto`; Einnahmen und Ausgaben werden nie vermischt. Kennzahlen mit `braucht_jahr` verlangen die Gruppierung nach `jahr` oder genau ein gefiltertes Jahr. Die Bezeichnung zu einem Schlüssel (z. B. `einzelplan_text`) stammt aus dem jüngsten Jahr der Auswahl; bei Gleichstand im selben Jahr gilt der alphabetisch erste Text. `titelgruppe_nr` gibt es nur zusammen mit `kapitel_nr`, als Gruppierung wie als Filter, weil eine Titelgruppennummer nur innerhalb eines Kapitels eindeutig ist. Filterlisten werden dedupliziert. Die Vorjahreswerte verdichten nur nach den Join-Schlüsseln (die Gruppierung ohne `jahr`, `haushaltsstand` und `soll_quelle`); Filter und Gruppierung nach `haushaltsstand` und `soll_quelle` wirken nicht aufs Vorjahr. Das Ergebnis nennt Hinweise in Klartext: Ist nur für abgeschlossene Jahre, Abweichung nur mit Soll aus der internalapi, fortgeschriebene Einwohnerzahl, Vorjahr je Schlüssel ohne Nachführung von Ressortwechseln, Regierungsentwurf, Kürzung auf das Limit. Höchstens 500 Zeilen. Fehlerhafte Parameter werfen `errcode 22023` mit einer Meldung, mit der das Modell die Anfrage korrigieren kann.
+Regeln: Das Konto muss feststehen, über den Filter `konto` mit genau einem Wert oder über die Gruppierung nach `konto`; Einnahmen und Ausgaben werden nie vermischt. Kennzahlen mit `braucht_jahr` verlangen die Gruppierung nach `jahr` oder genau ein gefiltertes Jahr. Die Bezeichnung zu einem Schlüssel (z. B. `einzelplan_text`) stammt aus dem jüngsten Jahr der Auswahl; bei Gleichstand im selben Jahr gilt der alphabetisch erste Text. `titelgruppe_nr` gibt es nur zusammen mit `kapitel_nr`, als Gruppierung wie als Filter, weil eine Titelgruppennummer nur innerhalb eines Kapitels eindeutig ist. Filterlisten werden dedupliziert. Die Vorjahreswerte verdichten nur nach den Join-Schlüsseln (die Gruppierung ohne `jahr`, `haushaltsstand` und `soll_quelle`); Filter und Gruppierung nach `haushaltsstand` und `soll_quelle` wirken nicht aufs Vorjahr. Das Ergebnis nennt Hinweise in Klartext: Ist nur für abgeschlossene Jahre, Abweichung nur mit Soll aus der internalapi, fortgeschriebene Einwohnerzahl, Vorjahr je Schlüssel ohne Nachführung von Ressortwechseln, Regierungsentwurf, Kürzung auf das Limit, keine Zeilen für die Auswahl. Höchstens 500 Zeilen. Fehlerhafte Parameter werfen `errcode 22023` mit einer Meldung, mit der das Modell die Anfrage korrigieren kann.
 
 Zeitlimit: Die Funktionen setzen kein `statement_timeout`, weil es innerhalb einer Funktion für die laufende Anweisung nicht greift. Es gilt das Rollenlimit von Supabase (`anon` 3 s, `authenticated` 8 s).
 
@@ -931,12 +939,15 @@ import { systemPrompt, SYSTEM_PROMPT_VERSION } from '@/lib/agent/prompts';
 import { rpc } from '@/lib/supabase/server';
 import { recordToolCall } from '@/lib/receipts/audit';
 
-const METRICS = ['soll','ist','abweichung_abs','abweichung_rel','ist_quote','anteil_gesamt',
-                 'veraenderung_vj_abs','veraenderung_vj_rel','cagr'] as const;
+// Die 17 Kennzahl-IDs aus dbt/seeds/semantik_kennzahlen.csv (Abschnitt 10)
+const METRICS = ['soll','soll_xml','ist','abweichung','abweichung_rel','ist_quote','soll_anteil','ist_anteil',
+                 'soll_pro_kopf','ist_pro_kopf','soll_pro_tag','ist_pro_tag','soll_vj_abs','soll_vj_rel',
+                 'ist_vj_abs','ist_vj_rel','titel_anzahl'] as const;
 const DIMS = ['jahr','konto','einzelplan_nr','kapitel_nr','titelgruppe_nr','titel_key','hauptfunktion',
-              'oberfunktion','fkt','hauptgruppe','obergruppe','gruppierung_nr','flexibilisiert'] as const;
+              'oberfunktion','fkt','hauptgruppe','obergruppe','gruppierung_nr','flexibilisiert',
+              'haushaltsstand','soll_quelle'] as const;
 
-export function createHaushaltsAgent(ctx: { turnId: string; datasetVersionId: string }) {
+export function createHaushaltsAgent(ctx: { turnId: string; version: number }) {
   return new ToolLoopAgent({
     model: anthropic(process.env.LLM_MODEL_CHAT ?? 'claude-sonnet-5-5'),
     instructions: systemPrompt,
@@ -957,7 +968,7 @@ export function createHaushaltsAgent(ctx: { turnId: string; datasetVersionId: st
             rpc('query_metric', {
               p_metrics: input.metrics, p_group_by: input.groupBy, p_filters: input.filters,
               p_order_by: input.orderBy ?? null, p_limit: input.limit,
-              p_dataset_version_id: ctx.datasetVersionId,   // Version ist je Antwort fixiert
+              p_version: ctx.version,   // Version ist je Antwort fixiert
             })),
       }),
       // searchEntities, getTitelDetail, getDatasetStatus, explainTerm analog
@@ -1387,10 +1398,10 @@ ob die Regel als error taugt. Keine Abkürzungen bei Tests, die rot sind: Ursach
 
 ```text
 P3 · Semantische Schicht
-Lies Abschnitt 10. Lege semantic.metric_definition mit allen Kennzahlen an und implementiere
+Lies Abschnitt 10. Lege semantic.kennzahl (je Semantik-Version, E19) mit allen Kennzahlen an und implementiere
 api.query_metric vollständig mit Positivlisten, format('%I'), parametrisierten Filtern, Limit und
 fixierbarer Datenversion. Implementiere search_entities mit pg_trgm und Synonymen (Startbestand
-100 Begriffe als Seed), get_titel_detail, get_dataset_status, get_glossary. Schreibe Integrationstests,
+100 Begriffe als Seed), get_titel_detail, get_dataset_status, get_glossar. Schreibe Integrationstests,
 darunter Angriffe: unbekannte Dimension, SQL in Filterwerten, Limit 10000, fremde Schemas.
 ```
 
