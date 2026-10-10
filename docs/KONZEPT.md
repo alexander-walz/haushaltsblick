@@ -808,21 +808,31 @@ Die Werte für `ops.control_total` werden einmal je Jahr aus der Haushaltsrechnu
 
 Dashboard und KI greifen auf dieselben, einmal definierten Kennzahlen zu, und keine Komponente rechnet eine Kennzahl selbst. Das ist die direkte Antwort auf den Satz „Unsere Zahlen widersprechen sich“ und das Herzstück der Referenz.
 
-### Kennzahlen (Seed für `semantic.metric_definition`)
+### Kennzahlen (Seed `dbt/seeds/semantik_kennzahlen.csv`, je Version in `semantic.kennzahl`)
 
 | ID | Name | Definition | Formel | Einheit |
 | --- | --- | --- | --- | --- |
-| `soll` | Soll | Im Haushaltsplan veranschlagter Betrag des gewählten Haushaltsstands | Summe `soll_eur` | € |
-| `ist` | Ist | Tatsächlich gebuchter Betrag laut Portal, nur für abgeschlossene Jahre | Summe `ist_eur` | € |
-| `abweichung_abs` | Abweichung absolut | Ist minus Soll | Summe `ist_eur` minus Summe `soll_eur` | € |
-| `abweichung_rel` | Abweichung relativ | Abweichung bezogen auf das Soll | `abweichung_abs / nullif(soll, 0)` | % |
-| `ist_quote` | Ist-Quote | Anteil des Solls, der tatsächlich gebucht wurde | `ist / nullif(soll, 0)` | % |
-| `anteil_gesamt` | Anteil am Gesamthaushalt | Betrag bezogen auf die Summe des Kontos im selben Jahr | Betrag / Summe über Jahr und Konto | % |
-| `veraenderung_vj_abs` | Veränderung zum Vorjahr | Betrag minus Betrag des Vorjahres bei gleicher Wertart | Betrag(t) minus Betrag(t−1) | € |
-| `veraenderung_vj_rel` | Veränderung zum Vorjahr in Prozent | Relative Veränderung zum Vorjahr | Veränderung / Betrag(t−1) | % |
-| `cagr` | Durchschnittliche jährliche Wachstumsrate | Geometrisches Mittel über einen Zeitraum | (Betrag Ende / Betrag Anfang)^(1/Jahre) − 1 | % |
+| `soll` | Soll | Maßgeblicher veranschlagter Betrag laut internalapi, einschließlich Nachtragshaushalten. Ohne API-Soll der Betrag aus der XML-Datei des Haushaltsplans. | Summe soll_eur | € |
+| `soll_xml` | Soll laut Haushaltsplan | Veranschlagter Betrag aus der veröffentlichten XML-Datei des Haushaltsplans. Das ist der ursprüngliche Planstand ohne Nachträge. | Summe soll_xml_eur | € |
+| `ist` | Ist | Tatsächlich gebuchter Betrag. Nur für abgeschlossene Jahre, sonst nicht verfügbar und nie 0. | Summe ist_eur | € |
+| `abweichung` | Abweichung | Ist minus Soll. Nur wenn das Soll aus der internalapi stammt und das Ist verfügbar ist. | Summe ist_eur minus Summe soll_eur | € |
+| `abweichung_rel` | Abweichung relativ | Abweichung bezogen auf das Soll. | abweichung / soll | Anteil |
+| `ist_quote` | Ist-Quote | Anteil des Solls, der tatsächlich gebucht wurde. | ist / soll | Anteil |
+| `soll_anteil` | Anteil am Gesamthaushalt (Soll) | Soll bezogen auf das gesamte Soll des Kontos im selben Jahr. | soll / Summe soll über Jahr und Konto | Anteil |
+| `ist_anteil` | Anteil am Gesamthaushalt (Ist) | Ist bezogen auf das gesamte Ist des Kontos im selben Jahr. | ist / Summe ist über Jahr und Konto | Anteil |
+| `soll_pro_kopf` | Soll je Einwohnerin und Einwohner | Soll geteilt durch die Bevölkerung am 1. Januar des Jahres (Eurostat). | soll / einwohner | € |
+| `ist_pro_kopf` | Ist je Einwohnerin und Einwohner | Ist geteilt durch die Bevölkerung am 1. Januar des Jahres (Eurostat). | ist / einwohner | € |
+| `soll_pro_tag` | Soll je Tag | Soll geteilt durch die Tage des Jahres (365 oder 366). | soll / tage | € |
+| `ist_pro_tag` | Ist je Tag | Ist geteilt durch die Tage des Jahres (365 oder 366). | ist / tage | € |
+| `soll_vj_abs` | Veränderung Soll zum Vorjahr | Soll minus Soll des Vorjahres beim gleichen Schlüssel. | soll(t) minus soll(t-1) | € |
+| `soll_vj_rel` | Veränderung Soll zum Vorjahr relativ | Veränderung bezogen auf das Soll des Vorjahres. | (soll(t) minus soll(t-1)) / soll(t-1) | Anteil |
+| `ist_vj_abs` | Veränderung Ist zum Vorjahr | Ist minus Ist des Vorjahres beim gleichen Schlüssel. | ist(t) minus ist(t-1) | € |
+| `ist_vj_rel` | Veränderung Ist zum Vorjahr relativ | Veränderung bezogen auf das Ist des Vorjahres. | (ist(t) minus ist(t-1)) / ist(t-1) | Anteil |
+| `titel_anzahl` | Anzahl Titel | Anzahl der Titel in der Auswahl je Jahr, Titel mit Betrag 0 eingeschlossen. Über mehrere Jahre zählt jeder Titel einmal je Jahr. | Anzahl Zeilen | Anzahl |
 
-Alle Beträge sind nominal. Ist-Werte des laufenden Jahres gelten als „nicht verfügbar“ und werden nie als 0 dargestellt.
+CAGR entfällt, weil Haushaltsstände und Ressortwechsel die Rate über viele Jahre verzerren und das Sprachmodell nie selbst rechnet. Für Entwicklungen gibt es die Zeitreihe und die Vorjahreskennzahlen.
+
+Alle Beträge sind nominal. Ist-Werte des laufenden Jahres gelten als „nicht verfügbar“ und werden nie als 0 dargestellt. Kennzahlen mit `braucht_jahr` (je Kopf, je Tag, Vorjahr) brauchen ein einzelnes Jahr je Zeile.
 
 ### Dimensionen und erlaubte Filter
 
@@ -833,74 +843,57 @@ Alle Beträge sind nominal. Ist-Werte des laufenden Jahres gelten als „nicht v
 | Institutionell | Einzelplan, Kapitel, Titelgruppe, Titel | `einzelplan_nr`, `kapitel_nr`, `titelgruppe_nr`, `titel_key` |
 | Funktional | Hauptfunktion, Oberfunktion, Funktion | `hauptfunktion`, `oberfunktion`, `fkt` |
 | Ökonomisch | Hauptgruppe, Obergruppe, Gruppierung | `hauptgruppe`, `obergruppe`, `gruppierung_nr` |
-| Merkmale | Flexibilisiert, Haushaltsstand | `flexibilisiert`, `haushaltsstand` |
+| Merkmale | Flexibilisiert, Haushaltsstand, Quelle des Solls | `flexibilisiert`, `haushaltsstand`, `soll_quelle` |
+
+Jede Dimension ist auch Filter (ein Wert oder eine Liste einfacher Werte). Dazu kommen die Filter `jahr_von` und `jahr_bis` (Jahreszahl, jeweils einschließlich).
 
 ### Abfragefunktion für Dashboard und Agent
 
-Eine einzige, generische RPC-Funktion bedient fast alle Fragen. Sie baut SQL dynamisch, aber ausschließlich aus Positivlisten, und quotiert jeden Bezeichner mit `format('%I')`.
+Eine einzige, generische RPC-Funktion bedient fast alle Fragen. Sie baut SQL dynamisch, aber ausschließlich aus Positivlisten, quotiert jeden Bezeichner mit `format('%I')` und übergibt Filterwerte nur als Parameter. Sie liest ausschließlich `semantic.stand(version)`, also die Zeilen der veröffentlichten Version aus `mart.fct_titel_jahr_hist`.
 
 ```sql
-create or replace function api.query_metric(
-  p_metrics            text[],                  -- z. B. {soll,ist,ist_quote}
-  p_group_by           text[] default '{}',     -- z. B. {jahr,einzelplan_nr}
-  p_filters            jsonb  default '{}',     -- z. B. {"konto":"ausgaben","jahr":[2022,2023]}
-  p_order_by           text   default null,     -- eine Kennzahl, absteigend
-  p_limit              int    default 50,
-  p_dataset_version_id uuid   default null      -- null = aktuelle Version
-) returns jsonb
+create function api.query_metric(
+  p_metrics    text[],                   -- z. B. {soll,ist,ist_quote}
+  p_group_by   text[]  default '{}',     -- z. B. {jahr,einzelplan_nr}
+  p_filters    jsonb   default '{}',     -- z. B. {"konto": "ausgaben", "jahr": [2024, 2025]}
+  p_order_by   text    default null,     -- eine angefragte Kennzahl oder Gruppierung
+  p_absteigend boolean default true,     -- null gilt als absteigend
+  p_limit      integer default 50,       -- 1 bis 500
+  p_version    bigint  default null      -- null = aktuelle Datenversion
+) returns jsonb                          -- version, semantik_version, vorlage ('query_metric.v1'),
+                                         -- parameter, einheiten, zeilen, zeilen_gesamt, hinweise
 language plpgsql
+stable
 security definer
-set search_path = mart, semantic, ops, pg_temp
-set statement_timeout = '5s'
-as $$
-declare
-  v_version uuid := coalesce(p_dataset_version_id,
-                   (select dataset_version_id from ops.dataset_version where is_current));
-  allowed_dims text[] := array['jahr','konto','einzelplan_nr','kapitel_nr','titelgruppe_nr','titel_key',
-                               'hauptfunktion','oberfunktion','fkt','hauptgruppe','obergruppe',
-                               'gruppierung_nr','flexibilisiert','haushaltsstand'];
-  v_sql text;
-begin
-  if not p_group_by <@ allowed_dims then
-    raise exception 'Unzulässige Dimension: %', p_group_by;
-  end if;
-  if exists (select 1 from unnest(p_metrics) m
-             where m not in (select metric_id from semantic.metric_definition)) then
-    raise exception 'Unbekannte Kennzahl: %', p_metrics;
-  end if;
-  if p_limit > 500 then p_limit := 500; end if;
+set search_path = pg_catalog, pg_temp;
 
-  -- Aufbau: SELECT <dims>, <sql_ausdruck je Kennzahl> FROM mart.fct_titel_jahr
-  -- WHERE dataset_version_id = v_version AND <Filter aus Positivliste>
-  -- GROUP BY <dims> ORDER BY <Kennzahl> LIMIT p_limit
-  -- Filter: jsonb_each(p_filters), Schlüssel gegen allowed_dims prüfen,
-  -- Werte immer als Parameter über format('%L') bzw. = any(...) einsetzen.
-  -- (Implementierung in Phase 3, siehe Prompt P3)
-
-  return jsonb_build_object(
-    'dataset_version_id', v_version,
-    'sql_template_id', 'query_metric.v1',
-    'rows', '[]'::jsonb  -- Ergebnis
-  );
-end $$;
-
-revoke all on function api.query_metric from public;
-grant execute on function api.query_metric to anon, authenticated;
+revoke all on function api.query_metric(text[], text[], jsonb, text, boolean, integer, bigint) from public;
+grant execute on function api.query_metric(text[], text[], jsonb, text, boolean, integer, bigint)
+  to anon, authenticated, service_role;
 ```
+
+Regeln: Das Konto muss feststehen, über den Filter `konto` mit genau einem Wert oder über die Gruppierung nach `konto`; Einnahmen und Ausgaben werden nie vermischt. Kennzahlen mit `braucht_jahr` verlangen die Gruppierung nach `jahr` oder genau ein gefiltertes Jahr. Die Bezeichnung zu einem Schlüssel (z. B. `einzelplan_text`) stammt aus dem jüngsten Jahr der Auswahl; bei Gleichstand im selben Jahr gilt der alphabetisch erste Text. `titelgruppe_nr` gibt es nur zusammen mit `kapitel_nr`, als Gruppierung wie als Filter, weil eine Titelgruppennummer nur innerhalb eines Kapitels eindeutig ist. Filterlisten werden dedupliziert. Die Vorjahreswerte verdichten nur nach den Join-Schlüsseln (die Gruppierung ohne `jahr`, `haushaltsstand` und `soll_quelle`); Filter und Gruppierung nach `haushaltsstand` und `soll_quelle` wirken nicht aufs Vorjahr. Das Ergebnis nennt Hinweise in Klartext: Ist nur für abgeschlossene Jahre, Abweichung nur mit Soll aus der internalapi, fortgeschriebene Einwohnerzahl, Vorjahr je Schlüssel ohne Nachführung von Ressortwechseln, Regierungsentwurf, Kürzung auf das Limit. Höchstens 500 Zeilen. Fehlerhafte Parameter werfen `errcode 22023` mit einer Meldung, mit der das Modell die Anfrage korrigieren kann.
+
+Zeitlimit: Die Funktionen setzen kein `statement_timeout`, weil es innerhalb einer Funktion für die laufende Anweisung nicht greift. Es gilt das Rollenlimit von Supabase (`anon` 3 s, `authenticated` 8 s).
 
 ### Weitere RPC-Funktionen
 
 | Funktion | Zweck | Rückgabe |
 | --- | --- | --- |
-| `api.search_entities(q text, jahr int, typ text default null)` | Freitext auf Einzelpläne, Kapitel, Titel, Funktionen; nutzt `semantic.synonym` und `pg_trgm` | Kandidaten mit Typ, Schlüssel, Bezeichnung, Ähnlichkeit |
-| `api.get_titel_detail(titel_key text, jahr int)` | Stammdaten und Zeitreihe eines Titels | Titel, Fundstelle (PDF-URL, Seite), Werte 2012 bis heute |
-| `api.get_dataset_status()` | Aktueller Datenstand und Ampel | Version, Zeitpunkt, Ampel, Qualitätswert, verfügbare Jahre |
-| `api.get_glossary(begriff text)` | Fachbegriffe und Kennzahldefinitionen | Definition, Formel, Beispiel |
-| `api.get_receipt(receipt_id text)` | Öffentliche Belegansicht | Beleg ohne Sitzungsdaten |
+| `api.search_entities(p_q text, p_jahr integer default null, p_typ text default null, p_limit integer default 20, p_version bigint default null)` | Freitext auf Einzelpläne, Kapitel, Titel, Funktionen und Gruppierungen (alle Ebenen) eines Jahres; Synonyme der Semantik-Version und Trigramm-Ähnlichkeit (`pg_trgm`, `unaccent`) | `suchbegriff`, `jahr`, `treffer` (Typ, Konto, Schlüssel, Bezeichnung, Soll, Ähnlichkeit, Trefferart, fertiger Filter für `query_metric`), `version`, `semantik_version` |
+| `api.get_titel_detail(p_titel_key text, p_jahr integer default null, p_version bigint default null)` | Stammdaten und Zeitreihe eines Titels über Ressortwechsel (E18); ohne Jahr das jüngste Jahr | `titel`, `fundstelle` (PDF-URL, Seite), `zeitreihe` (je Jahr mit Verknüpfung), `hinweise`, `version` |
+| `api.get_dataset_status(p_version bigint default null)` | Datenstand und Ampel | `version`, `veroeffentlicht_am`, `ampel`, `score`, `zeilen`, `pruefungen` (nicht bestandene), `jahre` (Haushaltsstand, Quelle, Ist verfügbar), `ist_aktuell`, `semantik_version` |
+| `api.get_glossar(p_begriff text default null, p_version bigint default null)` | Fachbegriffe; ohne Begriff das ganze Glossar | `eintraege` (Begriff, Erklärung, Beispiel), `version`, `semantik_version` |
+| `api.list_kennzahlen(p_version bigint default null)` | Kennzahlenkatalog der Semantik-Version | `kennzahlen` (ID, Name, Definition, Formel, Einheit, `braucht_jahr`), `version`, `semantik_version` |
+| `api.get_receipt(receipt_id text)` | Öffentliche Belegansicht (Plan 7) | Beleg ohne Sitzungsdaten |
+
+Regeln von `search_entities`: Ein Schlüsseltreffer (die Nummer selbst) und ein exakt gleiches Synonym zählen 1,0, ein Synonym als ganzes Wort im Suchbegriff 0,95, ein ähnliches Synonym höchstens 0,9. Texttreffer zählen höchstens 0,9, 1,0 nur bei exakt gleichem (normiertem) Text. Bei gleicher Ähnlichkeit gilt schluessel vor synonym vor text. Treffer unter 0,35 entfallen, höchstens 50 Treffer. Der Suchbegriff hat höchstens 200 Zeichen.
+
+Rechte: Default-Privilegien je Schema wirken in Postgres nicht, weil das Ausführungsrecht für PUBLIC global vergeben wird. Jede Funktion in `api` und `semantic` entzieht PUBLIC deshalb ausdrücklich das Ausführungsrecht. Ein Wächtertest in `grundlagen.int.test.ts` prüft das und dass jede Funktion in `api` `security definer` mit festem `search_path` ist.
 
 ### Synonyme und Glossar
 
-Die Tabelle `semantic.synonym` übersetzt Alltagssprache in Haushaltsschlüssel, zum Beispiel „Bundeswehr“ oder „Verteidigung“ auf den Einzelplan des Verteidigungsressorts im jeweiligen Jahr. Der Startbestand umfasst rund 100 Begriffe und wird aus den häufigsten unaufgelösten Suchbegriffen der Chat-Protokolle gepflegt. Das Glossar erklärt Begriffe wie Globale Minderausgabe, Verpflichtungsermächtigung, Flexibilisierung und Haushaltsstand in zwei bis drei Sätzen.
+Synonyme (`core.semantik_synonyme`) übersetzen Alltagssprache in Haushaltsschlüssel, zum Beispiel „Bundeswehr“ auf den Einzelplan 14, mit Konto und Gültigkeitszeitraum. Das Glossar (`core.semantik_glossar`) erklärt Begriffe wie Globale Minderausgabe, Verpflichtungsermächtigung, Flexibilisierung und Haushaltsstand in zwei bis drei Sätzen. Gepflegt werden beide, wie Kennzahlen und Einwohnerzahlen, über die Seeds `dbt/seeds/semantik_*.csv` per Pull Request. Jede Veröffentlichung bindet den Stand als Semantik-Version an die Datenversion (E3, E19); eine neue Semantik-Version entsteht nur bei geändertem Inhalt. DQ-19 prüft, dass jedes Synonym in jedem Jahr seines Gültigkeitszeitraums Daten trifft. Später ergänzen die häufigsten unaufgelösten Suchbegriffe aus den Chat-Protokollen den Bestand.
 
 ## 11. KI-Assistent: Agent, Tools, Systemprompt und Guardrails
 
@@ -922,7 +915,7 @@ Der Assistent ist ein Tool-Calling-Agent, der nur lesen, suchen und darstellen k
 | `queryMetric` | Server, `api.query_metric` | `metrics: enum[]`, `groupBy: enum[]`, `filters: object`, `orderBy?`, `limit?` | Zeilen, Datenversion, SQL-Vorlage | Alle Zahlenfragen |
 | `getTitelDetail` | Server, `api.get_titel_detail` | `titelKey: string`, `jahr: number` | Stammdaten, Zeitreihe, Fundstelle | Detailfragen zu einem Titel |
 | `getDatasetStatus` | Server, `api.get_dataset_status` | keine | Version, Ampel, verfügbare Jahre | „Wie aktuell sind die Daten?“ |
-| `explainTerm` | Server, `api.get_glossary` | `begriff: string` | Definition, Formel | Fachbegriffe und Kennzahlen erklären |
+| `explainTerm` | Server, `api.get_glossar` | `begriff: string` | Definition, Formel | Fachbegriffe und Kennzahlen erklären |
 | `showChart` | Client, ohne `execute` | `typ: enum`, `queryRef: string`, `titel: string` | rendert Diagramm im Chat | Zeitreihe, Ranking, Vergleich zeigen |
 | `setDashboardFilter` | Client, ohne `execute` | `jahr?`, `einzelplan?`, `ansicht?` | setzt Filter im Dashboard | „Zeig mir das im Explorer“ |
 

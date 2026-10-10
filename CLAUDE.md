@@ -15,14 +15,15 @@ Umsetzungspläne: docs/superpowers/plans/.
 - Geheimnisse nur serverseitig, nie mit NEXT_PUBLIC_.
 - Kostenfrei bleiben: nichts einbauen, was einen kostenpflichtigen Tarif voraussetzt.
 
-## Stack (Stand Plan 1)
+## Stack (Stand Plan 4)
 Node 24, pnpm Workspaces, TypeScript strict (ESM, moduleResolution Bundler, Quellpakete ohne Build),
 Vitest, saxes, postgres (porsager), Supabase CLI 2.120.0 lokal über pnpm dlx.
 dbt-core 1.12.5 mit dbt-postgres 1.11.0 (Python 3.13, lokal in .venv über uv).
+Postgres-Erweiterungen pg_trgm und unaccent im Schema extensions.
 
 ## Befehle
 - pnpm test                 Unit-Tests aller Pakete
-- pnpm test:int             Integrationstests (lokale Datenbank muss laufen)
+- pnpm test:int             Integrationstests (lokale Datenbank muss laufen; braucht einmal `pnpm dbt seed` für die Semantik-Seeds)
 - pnpm typecheck
 - pnpm db:start | db:reset | db:stop    lokale Postgres-Datenbank mit Migrationen
 - uv venv .venv --python 3.13 && uv pip install --python .venv -r dbt/requirements.txt   dbt einrichten (einmalig)
@@ -43,11 +44,13 @@ dbt-core 1.12.5 mit dbt-postgres 1.11.0 (Python 3.13, lokal in .venv über uv).
 - Unit-Tests *.test.ts, Integrationstests gegen die lokale Datenbank *.int.test.ts, jeweils neben dem Code.
 - Integrationstests laufen in einer Transaktion, die am Ende zurückgerollt wird (imRollback).
 - UI-Texte: deutsch, kurz, partnerschaftlich, keine Halbgeviert- oder Geviertstriche.
+- Funktionen im Schema api sind security definer mit festem search_path, lesen nur semantic.stand(version), haben keine Überladungen und werfen Fehler mit errcode 22023. Hilfsfunktionen liegen in semantic.
+- Jede Funktion in api und semantic entzieht PUBLIC ausdrücklich das Ausführungsrecht (revoke all ... from public); Default-Privilegien je Schema wirken dafür nicht. Ein Wächtertest in packages/ingest/src/abfrage/grundlagen.int.test.ts prüft das.
 
 ## Arbeitsweise
 - Testgetrieben: erst roter Test, dann Code.
 - Externe Quellen höflich abrufen: eindeutiger User-Agent mit Kontakt, höchstens 2 Anfragen pro Sekunde.
 - User-Agent ohne E-Mail: Standard ist Haushaltsblick/<version> (+https://github.com/alexander-walz/haushaltsblick).
-- Bei jeder Änderung an Parser, Crawler oder Datenmodell die Version in packages/ingest/package.json erhöhen (pipeline_version).
+- Bei jeder Änderung an Parser oder Crawler die Version in packages/ingest/package.json erhöhen (pipeline_version); bei Änderungen an dbt-Modellen die Version in dbt/dbt_project.yml (Roadmap E20).
 - Alle Abrufe laufen nacheinander über die Drossel (500 ms), nie parallel.
 - Definition of Done: pnpm typecheck, pnpm test und pnpm test:int grün, KONZEPT.md bei Abweichungen aktualisiert.

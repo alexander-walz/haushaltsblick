@@ -34,6 +34,8 @@ Geplante Workflows laufen nur auf dem Standard-Branch `main`.
 | DQ-14 gelb | XML- und API-Soll unterscheiden sich ohne Nachtrag oder Entwurf, oder das Stand-Label der API ist unbekannt (`stand = 'unbekannt'`) | Befund prüfen; bei neuem Label `dim_haushaltsstand.sql` ergänzen; kein Blocker, die Veröffentlichung läuft weiter |
 | DQ-17 rot | API-Soll fehlt für ein Jahr und Konto mit Ist oder für ein Jahr bis zum laufenden Jahr | Lauf `api --quote soll` mit `neu_laden` für das Jahr starten; ohne API-Soll werden Abweichung und Ist-Quote nie aus dem XML-Soll berechnet |
 | DQ-18 gelb | Datenbank größer als 400 MB (Supabase Free: 500 MB) | Abschnitt „Speicherbudget“ befolgen |
+| DQ-19 gelb | Ein Synonym trifft in einem Jahr seines Gültigkeitszeitraums keinen Titel | Zeitraum oder Schlüssel in `dbt/seeds/semantik_synonyme.csv` per Pull Request anpassen; kein Blocker |
+| „Semantik-Seeds fehlen in core“ | `dbt seed` ist nicht gelaufen, die Veröffentlichung findet keine Semantik | Schritt dbt im Bericht prüfen; lokal `pnpm dbt seed` ausführen |
 | „nicht veröffentlicht: dbt mit --vars ausgeführt (Testlauf)“ | dbt lief mit gelockerten Prüfungen (`--vars`) | im Workflow nicht vorgesehen; lokal bewusst mit `--testlauf` veröffentlichen |
 | Schritt „Rohdaten aufräumen“ übersprungen | Archiv-Upload oder Veröffentlichung nicht erfolgreich | nichts tun; `raw` bleibt vollständig, der nächste erfolgreiche Lauf räumt auf |
 | Warnungen „Unbekanntes Feld …“ | API liefert neue Felder | kein Handlungsbedarf, beim nächsten Schema-Update aufnehmen |
@@ -62,6 +64,7 @@ Nach den Ingest-Schritten laufen `dbt seed`, `dbt run` und `dbt test` (getrennt,
 | DQ-16 | Konsistenz | Mart-Summen je Jahr und Konto gleich der API-Wurzel (Soll und Ist) | error |
 | DQ-17 | Vollständigkeit | API-Soll für jedes Jahr und Konto mit Ist sowie für alle Jahre ab dq13_ab_jahr bis zum laufenden Jahr geladen | error |
 | DQ-18 | Betrieb | Datenbankgröße unter 400 MB (Supabase Free: 500 MB) | warn |
+| DQ-19 | Semantik | Jedes Synonym trifft in jedem Jahr seines Gültigkeitszeitraums mindestens einen Titel | warn |
 
 Ampel: grün (alle Prüfungen bestanden), gelb (nur Warnungen), rot (mindestens eine Fehler-Prüfung fehlgeschlagen). Eine rote Ampel wird nie veröffentlicht, die bisherige Version bleibt aktiv.
 
@@ -83,6 +86,22 @@ pnpm --filter @hb/ingest veroeffentliche --testlauf --ohne-aufraeumen
 `dq13_ab_jahr` begrenzt DQ-13 und DQ-17 bei unvollständigen lokalen Daten auf Jahre ab `<jahr>`. Ein dbt-Lauf mit `--vars` ist ein Testlauf: `veroeffentliche` speichert dann nur den DQ-Lauf, veröffentlicht nicht und endet mit 1 („nicht veröffentlicht: dbt mit --vars ausgeführt (Testlauf)“). Mit `--testlauf` wird trotzdem veröffentlicht; der Bericht nennt dann „Testlauf (vars: …)“, und `ops.dq_lauf.dbt_aufruf` hält die vars fest. `--ohne-aufraeumen` lässt `raw` unverändert; `pnpm --filter @hb/ingest raeume-auf` räumt separat auf.
 
 Der erste Ingest-Lauf nach einem Wechsel der `pipeline_version` lädt alle Jahre neu und dauert etwa 2,5 Stunden.
+
+## Abfrageschicht (Data API)
+
+Dashboard und Agent lesen nur über die Funktionen im Schema `api` (Konzept Abschnitt 10). Jede Veröffentlichung bindet den Stand der Semantik-Seeds als Semantik-Version an die Datenversion.
+
+1. **Freischalten (einmalig):** Supabase → Project Settings → Data API → „Exposed schemas“ um `api` ergänzen und speichern.
+2. **Prüfen** mit dem Publishable Key (Supabase → Project Settings → API Keys). Steht `api` nicht an erster Stelle der Exposed schemas, braucht es den Header `Content-Profile: api`:
+
+   ```bash
+   curl -s -X POST "https://<projekt>.supabase.co/rest/v1/rpc/get_dataset_status" \
+     -H "apikey: <publishable key>" -H "Content-Type: application/json" -H "Content-Profile: api" -d '{}'
+   ```
+
+   Erwartet: JSON mit `version`, `ampel` und `semantik_version`.
+3. **Synonyme oder Glossar pflegen:** CSV in `dbt/seeds/` (`semantik_synonyme.csv`, `semantik_glossar.csv`, ebenso Kennzahlen und Einwohner) per Pull Request ändern. Der nächste Lauf von `ingest` erzeugt eine neue Semantik-Version. DQ-19 gelb heißt: ein Synonym trifft in einem Jahr nichts; Zeitraum anpassen.
+4. **Zeitlimit:** Es gilt das Rollenlimit von Supabase (`anon` 3 s, `authenticated` 8 s). Lokal liefen alle Kontrollabfragen unter 1 s.
 
 ## Aufräumen
 
