@@ -126,7 +126,7 @@ begin
       from semantic.kennzahl k where k.semantik_version_id = v_sem));
 end $$;
 
-create function api.get_glossar(p_begriff text default null, p_version bigint default null)
+create or replace function api.get_glossar(p_begriff text default null, p_version bigint default null)
 returns jsonb
 language plpgsql
 stable
@@ -138,6 +138,9 @@ declare
   v_sem bigint := semantic.semantik_von(v);
   v_q text := semantic.normtext(p_begriff);
 begin
+  if length(coalesce(p_begriff, '')) > 200 then
+    raise exception 'Begriff zu lang (höchstens 200 Zeichen)' using errcode = '22023';
+  end if;
   return jsonb_build_object(
     'version', v.version_id,
     'semantik_version', v_sem,

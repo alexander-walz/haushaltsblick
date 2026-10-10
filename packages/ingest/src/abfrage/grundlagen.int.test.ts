@@ -90,6 +90,15 @@ describe('Grundlagen der Abfrageschicht', () => {
       expect(c!.g.eintraege).toEqual([]);
     }));
 
+  it('lehnt zu lange Glossarbegriffe ab', () =>
+    imRollback(async (tx) => {
+      await leereMart(tx);
+      await veroeffentlicheTitel(tx, [{ jahr: 2024, titelKey: '140153201', soll: 1 }]);
+      const [z] = await tx`select api.get_glossar(${'a'.repeat(200)}) as g`;
+      expect(z!.g.eintraege).toEqual([]);
+      await expect(tx`select api.get_glossar(${'a'.repeat(201)})`).rejects.toMatchObject({ code: '22023', message: 'Begriff zu lang (höchstens 200 Zeichen)' });
+    }));
+
   describe('Rechte für anon', () => {
     it('keine Funktion in api oder semantic ist für PUBLIC ausführbar', () =>
       imRollback(async (tx) => {
