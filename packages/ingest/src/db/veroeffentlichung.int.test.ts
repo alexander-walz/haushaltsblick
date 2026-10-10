@@ -18,10 +18,10 @@ async function zeile(tx: Sql, titelKey: string, hash: string) {
 const lauf = (ampel: 'green' | 'yellow' | 'red') => ({ gitSha: 'abc', manifestSha: 'def', ampel, score: 100 });
 
 describe('Veröffentlichung in der Datenbank', () => {
-  it('lädt den Katalog mit 18 Prüfungen', () =>
+  it('lädt den Katalog mit 19 Prüfungen', () =>
     imRollback(async (tx) => {
       const katalog = await ladeDqKatalog(tx);
-      expect(katalog).toHaveLength(18);
+      expect(katalog).toHaveLength(19);
       expect(katalog.find((k) => k.checkId === 'DQ-04')).toEqual({ checkId: 'DQ-04', schwere: 'warn' });
     }));
 

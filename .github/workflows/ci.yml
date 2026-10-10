@@ -26,8 +26,9 @@ jobs:
         with:
           python-version: '3.13'
       - run: pip install -r dbt/requirements.txt
-      - name: dbt Modelle leer bauen und Unit-Tests ausführen
+      - name: dbt Seeds laden, Modelle leer bauen, Unit- und Seed-Prüfungen ausführen
         run: |
+          pnpm dbt seed
           pnpm dbt run --empty
-          pnpm dbt test --select "test_type:unit"
+          pnpm dbt test --select "test_type:unit" semantik_kennzahlen semantik_synonyme semantik_glossar semantik_einwohner
       - run: pnpm test:int

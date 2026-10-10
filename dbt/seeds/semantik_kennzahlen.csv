@@ -1,0 +1,18 @@
+kennzahl_id,name,definition,formel,einheit,braucht_jahr,reihenfolge
+soll,Soll,"Maßgeblicher veranschlagter Betrag laut internalapi, einschließlich Nachtragshaushalten. Ohne API-Soll der Betrag aus der XML-Datei des Haushaltsplans.",Summe soll_eur,EUR,false,10
+soll_xml,Soll laut Haushaltsplan,"Veranschlagter Betrag aus der veröffentlichten XML-Datei des Haushaltsplans. Das ist der ursprüngliche Planstand ohne Nachträge.",Summe soll_xml_eur,EUR,false,20
+ist,Ist,"Tatsächlich gebuchter Betrag. Nur für abgeschlossene Jahre, sonst nicht verfügbar und nie 0.",Summe ist_eur,EUR,false,30
+abweichung,Abweichung,"Ist minus Soll. Nur wenn das Soll aus der internalapi stammt und das Ist verfügbar ist.",Summe ist_eur minus Summe soll_eur,EUR,false,40
+abweichung_rel,Abweichung relativ,Abweichung bezogen auf das Soll.,abweichung / soll,Anteil,false,50
+ist_quote,Ist-Quote,"Anteil des Solls, der tatsächlich gebucht wurde.",ist / soll,Anteil,false,60
+soll_anteil,Anteil am Gesamthaushalt (Soll),Soll bezogen auf das gesamte Soll des Kontos im selben Jahr.,soll / Summe soll über Jahr und Konto,Anteil,false,70
+ist_anteil,Anteil am Gesamthaushalt (Ist),Ist bezogen auf das gesamte Ist des Kontos im selben Jahr.,ist / Summe ist über Jahr und Konto,Anteil,false,80
+soll_pro_kopf,Soll je Einwohnerin und Einwohner,Soll geteilt durch die Bevölkerung am 1. Januar des Jahres (Eurostat).,soll / einwohner,EUR,true,90
+ist_pro_kopf,Ist je Einwohnerin und Einwohner,Ist geteilt durch die Bevölkerung am 1. Januar des Jahres (Eurostat).,ist / einwohner,EUR,true,100
+soll_pro_tag,Soll je Tag,Soll geteilt durch die Tage des Jahres (365 oder 366).,soll / tage,EUR,true,110
+ist_pro_tag,Ist je Tag,Ist geteilt durch die Tage des Jahres (365 oder 366).,ist / tage,EUR,true,120
+soll_vj_abs,Veränderung Soll zum Vorjahr,Soll minus Soll des Vorjahres beim gleichen Schlüssel.,soll(t) minus soll(t-1),EUR,true,130
+soll_vj_rel,Veränderung Soll zum Vorjahr relativ,Veränderung bezogen auf das Soll des Vorjahres.,(soll(t) minus soll(t-1)) / soll(t-1),Anteil,true,140
+ist_vj_abs,Veränderung Ist zum Vorjahr,Ist minus Ist des Vorjahres beim gleichen Schlüssel.,ist(t) minus ist(t-1),EUR,true,150
+ist_vj_rel,Veränderung Ist zum Vorjahr relativ,Veränderung bezogen auf das Ist des Vorjahres.,(ist(t) minus ist(t-1)) / ist(t-1),Anteil,true,160
+titel_anzahl,Anzahl Titel,"Anzahl der Titel in der Auswahl je Jahr, Titel mit Betrag 0 eingeschlossen. Über mehrere Jahre zählt jeder Titel einmal je Jahr.",Anzahl Zeilen,Anzahl,false,170

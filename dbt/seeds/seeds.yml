@@ -8,3 +8,71 @@ seeds:
         wertart: text
         betrag_eur: numeric(18,2)
         quelle: text
+  - name: semantik_kennzahlen
+    config:
+      column_types:
+        kennzahl_id: text
+        name: text
+        definition: text
+        formel: text
+        einheit: text
+        braucht_jahr: boolean
+        reihenfolge: integer
+    columns:
+      - name: kennzahl_id
+        data_tests: [not_null, unique]
+      - name: einheit
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['EUR', 'Anteil', 'Anzahl']
+  - name: semantik_synonyme
+    config:
+      column_types:
+        begriff: text
+        typ: text
+        schluessel: text
+        konto: text
+        jahr_von: integer
+        jahr_bis: integer
+    columns:
+      - name: begriff
+        data_tests: [not_null]
+      - name: typ
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['einzelplan', 'funktion', 'oberfunktion', 'hauptfunktion', 'gruppierung', 'obergruppe', 'hauptgruppe']
+      - name: konto
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['ausgaben', 'einnahmen']
+      - name: schluessel
+        data_tests: [not_null]
+      - name: jahr_von
+        data_tests: [not_null]
+  - name: semantik_glossar
+    config:
+      column_types:
+        begriff: text
+        erklaerung: text
+        beispiel: text
+    columns:
+      - name: begriff
+        data_tests: [not_null, unique]
+      - name: erklaerung
+        data_tests: [not_null]
+  - name: semantik_einwohner
+    config:
+      column_types:
+        jahr: integer
+        einwohner: bigint
+        stichtag: date
+        quelle: text
+        hinweis: text
+    columns:
+      - name: jahr
+        data_tests: [not_null, unique]
+      - name: einwohner
+        data_tests: [not_null]

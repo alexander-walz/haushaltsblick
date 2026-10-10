@@ -1,3 +1,5 @@
+{{ config(materialized='view') }}
+-- View statt Tabelle (Plan 4): Arbeitsrelation, wird nie ausgeliefert und spart Speicher.
 with xml as (
   select * from {{ ref('stg_soll_titel') }} where not ist_anlage
 ),
