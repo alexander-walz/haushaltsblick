@@ -1,3 +1,5 @@
+{{ config(materialized='view') }}
+-- View statt Tabelle (Plan 4): Arbeitsrelation, wird nie ausgeliefert und spart Speicher.
 select
   jahr, konto, hauptfunktion, max(hauptfunktion_text) as hauptfunktion_text,
   oberfunktion, max(oberfunktion_text) as oberfunktion_text,

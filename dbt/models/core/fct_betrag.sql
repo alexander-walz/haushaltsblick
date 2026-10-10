@@ -1,3 +1,5 @@
+{{ config(materialized='view') }}
+-- View statt Tabelle (Plan 4): Arbeitsrelation, wird nie ausgeliefert und spart Speicher.
 select jahr, konto, titel_key, quote as wertart, betrag_eur, 'SRC_PORTAL_API' as source_id
 from {{ ref('stg_api_titel') }}
 union all

@@ -1,3 +1,5 @@
+{{ config(materialized='view') }}
+-- View statt Tabelle (Plan 4): Arbeitsrelation, wird nie ausgeliefert und spart Speicher.
 select
   jahr, konto, einzelplan_nr, max(einzelplan_text) as einzelplan_text,
   count(*) as anzahl_titel,
