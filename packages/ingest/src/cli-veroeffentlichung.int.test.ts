@@ -6,9 +6,9 @@ import { mainVeroeffentlichung } from './cli-veroeffentlichung';
 import { imRollback, veralteteRohzeile } from './db/test-hilfen';
 import type { Sql } from './db/client';
 
-const IDS = Array.from({ length: 18 }, (_, i) => `DQ-${String(i + 1).padStart(2, '0')}`);
+const IDS = Array.from({ length: 19 }, (_, i) => `DQ-${String(i + 1).padStart(2, '0')}`);
 // Schwere wie im Katalog ops.dq_check (abweichende Schwere ist seit F6 ein Fehler)
-const WARN = new Set(['DQ-04', 'DQ-05', 'DQ-06', 'DQ-10', 'DQ-11', 'DQ-12', 'DQ-14', 'DQ-18']);
+const WARN = new Set(['DQ-04', 'DQ-05', 'DQ-06', 'DQ-10', 'DQ-11', 'DQ-12', 'DQ-14', 'DQ-18', 'DQ-19']);
 
 function ziel(status: (id: string) => string = () => 'pass', dateien = true, args: Record<string, unknown> = { which: 'test', select: [], exclude: [], vars: {} }): string {
   const dir = mkdtempSync(join(tmpdir(), 'hb-dq-'));

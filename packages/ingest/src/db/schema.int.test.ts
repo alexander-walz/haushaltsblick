@@ -100,15 +100,17 @@ describe('Datenbankschema', () => {
       expect(titel).toEqual({ flexibilisiert: null });
     }));
 
-  it('legt den DQ-Katalog mit 18 Prüfungen an', () =>
+  it('legt den DQ-Katalog mit 19 Prüfungen an', () =>
     imRollback(async (tx) => {
       const rows = await tx<{ check_id: string; schwere: string }[]>`select check_id, schwere from ops.dq_check order by check_id`;
-      expect(rows.map((r) => r.check_id)).toEqual(Array.from({ length: 18 }, (_, i) => `DQ-${String(i + 1).padStart(2, '0')}`));
+      expect(rows.map((r) => r.check_id)).toEqual(Array.from({ length: 19 }, (_, i) => `DQ-${String(i + 1).padStart(2, '0')}`));
       expect(rows.filter((r) => r.schwere === 'error').map((r) => r.check_id)).toEqual([
         'DQ-01', 'DQ-02', 'DQ-03', 'DQ-07', 'DQ-08', 'DQ-09', 'DQ-13', 'DQ-15', 'DQ-16', 'DQ-17',
       ]);
-      const neu = await tx`select check_id, dimension, schwere from ops.dq_check where check_id in ('DQ-17', 'DQ-18') order by check_id`;
-      expect(neu.map((r) => [r.check_id, r.dimension, r.schwere])).toEqual([['DQ-17', 'Vollständigkeit', 'error'], ['DQ-18', 'Betrieb', 'warn']]);
+      const neu = await tx`select check_id, dimension, schwere from ops.dq_check where check_id in ('DQ-17', 'DQ-18', 'DQ-19') order by check_id`;
+      expect(neu.map((r) => [r.check_id, r.dimension, r.schwere])).toEqual([
+        ['DQ-17', 'Vollständigkeit', 'error'], ['DQ-18', 'Betrieb', 'warn'], ['DQ-19', 'Semantik', 'warn'],
+      ]);
     }));
 
   it('entzieht public das Ausführen von Veröffentlichung und Aufräumen', () =>
