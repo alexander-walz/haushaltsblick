@@ -33,10 +33,13 @@ describe('Formatierung', () => {
   it('formatiert Euro, Prozent und Ganzzahlen', () => {
     expect(euro(6276.1)).toBe('6.276 €');
     expect(euro(null)).toBe('n. v.');
-    expect(prozent(0.376217)).toBe('37,6 %');
-    expect(prozent(-0.045, { vorzeichen: true })).toBe('−4,5 %');
-    expect(prozent(0.0004, { vorzeichen: true })).toBe('0,0 %');
+    expect(prozent(0.376217)).toBe('37,6 %');
+    expect(prozent(-0.045, { vorzeichen: true })).toBe('−4,5 %');
+    expect(prozent(0.0004, { vorzeichen: true })).toBe('0,0 %');
     expect(prozent(null)).toBe('n. v.');
     expect(ganzzahl(100726)).toBe('100.726');
+    expect(ganzzahl(-5)).toBe('−5');
+    expect(ganzzahl(Number.NaN)).toBe('n. v.');
+    expect(ganzzahl(Number.POSITIVE_INFINITY)).toBe('n. v.');
   });
 });

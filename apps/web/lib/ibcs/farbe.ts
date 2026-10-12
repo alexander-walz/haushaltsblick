@@ -9,7 +9,7 @@ export const FARBKLASSE: Record<Abweichungsfarbe, string> = { positiv: 'ibcs-pos
  * Vorjahresvergleiche sind eine Entwicklung, keine Abweichung vom Plan, und bleiben immer neutral.
  */
 export function abweichungsfarbe(wert: number | null | undefined, wirkung: Wirkung | null | undefined, vergleich: Vergleich): Abweichungsfarbe {
-  if (vergleich === 'vorjahr' || wert === null || wert === undefined || wert === 0 || !wirkung || wirkung === 'neutral') return 'neutral';
+  if (vergleich === 'vorjahr' || wert === null || wert === undefined || !Number.isFinite(wert) || wert === 0 || !wirkung || wirkung === 'neutral') return 'neutral';
   return (wirkung === 'anstieg_positiv') === wert > 0 ? 'positiv' : 'negativ';
 }
 

@@ -52,9 +52,11 @@ export function euro(wert: Wert): string {
 export function prozent(anteil: Wert, opt: { vorzeichen?: boolean } = {}): string {
   if (anteil === null || anteil === undefined || !Number.isFinite(anteil)) return NICHT_VERFUEGBAR;
   const gerundet = Number((anteil * 100).toFixed(1));
-  return `${mitVorzeichen(zahl(gerundet, 1), gerundet, opt.vorzeichen ?? false)} %`;
+  return `${mitVorzeichen(zahl(gerundet, 1), gerundet, opt.vorzeichen ?? false)} %`;
 }
 
 export function ganzzahl(n: number): string {
-  return new Intl.NumberFormat('de-DE', { maximumFractionDigits: 0 }).format(n);
+  if (!Number.isFinite(n)) return NICHT_VERFUEGBAR;
+  const gerundet = Number(n.toFixed(0));
+  return mitVorzeichen(zahl(gerundet, 0), gerundet, false);
 }

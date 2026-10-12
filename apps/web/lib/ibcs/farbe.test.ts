@@ -14,6 +14,7 @@ describe('Farbregel E21', () => {
     expect(abweichungsfarbe(3, undefined, 'plan')).toBe('neutral');
     expect(abweichungsfarbe(null, 'anstieg_positiv', 'plan')).toBe('neutral');
     expect(abweichungsfarbe(0, 'anstieg_negativ', 'plan')).toBe('neutral');
+    expect(abweichungsfarbe(Number.NaN, 'anstieg_positiv', 'plan')).toBe('neutral');
   });
 
   it('färbt Vorjahresvergleiche nie', () => {
