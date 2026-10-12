@@ -6,7 +6,7 @@ export function Umschalter({ beschriftung, optionen, aktiv }: {
       <span className="mr-1 text-[var(--hb-gedaempft)]">{beschriftung}:</span>
       {optionen.map((o) => (
         <a key={o.wert} href={o.href} aria-current={o.wert === aktiv ? 'page' : undefined}
-          className={`rounded border px-2 py-0.5 no-underline ${o.wert === aktiv ? 'border-[var(--hb-akzent)] text-[var(--hb-akzent)]' : 'border-[var(--hb-linie)]'}`}>
+          className={`rounded border px-2 py-0.5 no-underline ${o.wert === aktiv ? 'border-[var(--hb-akzent)] text-[var(--hb-akzent-text)]' : 'border-[var(--hb-linie)]'}`}>
           {o.text}
         </a>
       ))}

@@ -58,7 +58,7 @@ export default async function TitelSeite({ params, searchParams }: {
       <nav aria-label="Jahr wählen" className="mt-2 flex flex-wrap gap-1 text-sm">
         {d.zeitreihe.map((z) => (
           <a key={z.jahr} href={`/titel/${z.jahr}/${z.titel_key}`} aria-current={z.jahr === jahr ? 'page' : undefined}
-            className={`rounded border px-1.5 no-underline ${z.jahr === jahr ? 'border-[var(--hb-akzent)] text-[var(--hb-akzent)]' : 'border-[var(--hb-linie)]'}`}>{z.jahr}</a>
+            className={`rounded border px-1.5 no-underline ${z.jahr === jahr ? 'border-[var(--hb-akzent)] text-[var(--hb-akzent-text)]' : 'border-[var(--hb-linie)]'}`}>{z.jahr}</a>
         ))}
       </nav>
       <ZeitreiheSaeulen id="zeitreihe" wirkung={wirkung} einheit={e}

@@ -34,8 +34,8 @@ export default async function Datenqualitaet() {
           </tbody>
         </table>
       )}
-      <h2 className="mt-6 text-lg font-semibold">Jahre und Haushaltsstand</h2>
-      <div className="overflow-x-auto">
+      <h2 id="jahre-haushaltsstand" className="mt-6 text-lg font-semibold">Jahre und Haushaltsstand</h2>
+      <div className="overflow-x-auto" tabIndex={0} role="region" aria-labelledby="jahre-haushaltsstand">
         <table className="mt-2 w-full text-sm">
           <thead><tr className="border-b-2 border-[var(--hb-ink)] text-left"><th scope="col" className="py-1 pr-2">Jahr</th><th scope="col" className="pr-2">Konto</th><th scope="col" className="pr-2">Haushaltsstand</th><th scope="col" className="pr-2">Soll aus</th><th scope="col" className="pr-2">Ist</th><th scope="col" className="text-right">Titel</th></tr></thead>
           <tbody>

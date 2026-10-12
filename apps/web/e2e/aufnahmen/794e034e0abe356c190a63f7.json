@@ -1,0 +1,5 @@
+{
+ "pfad": "/rest/v1/rpc/get_titel_detail?p_titel_key=999999999&p_jahr=2025&p_version=2",
+ "status": 400,
+ "text": "{\"code\":\"22023\",\"details\":null,\"hint\":null,\"message\":\"Titel 999999999 im Jahr 2025 nicht gefunden\"}"
+}

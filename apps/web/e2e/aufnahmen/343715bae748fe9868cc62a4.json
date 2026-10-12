@@ -1,0 +1,5 @@
+{
+ "pfad": "/rest/v1/rpc/query_metric?p_metrics=%7B%22abweichung%22%7D&p_group_by=%7B%7D&p_filters=%7B%22konto%22%3A%22ausgaben%22%2C%22jahr%22%3A2026%2C%22titel_key%22%3A%22041668421%22%7D&p_version=2",
+ "status": 200,
+ "text": "{\"zeilen\": [{\"abweichung\": null}], \"version\": 2, \"vorlage\": \"query_metric.v1\", \"hinweise\": [\"Ist liegt nur für abgeschlossene Jahre vor. Für die übrigen Jahre bleibt der Wert leer, nie 0.\"], \"einheiten\": {\"abweichung\": \"EUR\"}, \"parameter\": {\"limit\": 50, \"filter\": {\"jahr\": [2026], \"konto\": [\"ausgaben\"], \"titel_key\": [\"041668421\"]}, \"absteigend\": true, \"kennzahlen\": [\"abweichung\"], \"sortierung\": null, \"gruppierung\": []}, \"zeilen_gesamt\": 1, \"semantik_version\": 1}"
+}

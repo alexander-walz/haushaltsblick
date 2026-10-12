@@ -32,3 +32,14 @@ jobs:
           pnpm dbt run --empty
           pnpm dbt test --select "test_type:unit" semantik_kennzahlen semantik_synonyme semantik_glossar semantik_einwohner semantik_wirkungsrichtung
       - run: pnpm test:int
+  web-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with: { node-version: 24, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @hb/web exec playwright install --with-deps chromium
+      - run: pnpm --filter @hb/web test:e2e

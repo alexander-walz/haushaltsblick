@@ -8,6 +8,7 @@
   --hb-ink: #414042;
   --hb-gedaempft: #6b6b70;
   --hb-akzent: #ec008c;
+  --hb-akzent-text: #d6007f;
   --hb-bg: #ffffff;
   --hb-flaeche: #f6f6f7;
   --hb-linie: #e3e3e6;
@@ -22,6 +23,7 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --hb-ink: #ececee;
+    --hb-akzent-text: #ff5cb8;
     --hb-gedaempft: #a6a6ad;
     --hb-bg: #161618;
     --hb-flaeche: #1f1f22;
@@ -43,7 +45,7 @@ body {
 }
 
 a { text-underline-offset: 2px; text-decoration-color: var(--hb-linie); }
-a:hover { color: var(--hb-akzent); text-decoration-color: currentColor; }
+a:hover { color: var(--hb-akzent-text); text-decoration-color: currentColor; }
 :focus-visible { outline: 2px solid var(--hb-akzent); outline-offset: 2px; }
 
 @media (prefers-reduced-motion: no-preference) {

@@ -1,0 +1,5 @@
+{
+ "pfad": "/rest/v1/rpc/query_metric?p_metrics=%7B%22soll%22%2C%22soll_pro_kopf%22%2C%22soll_pro_tag%22%7D&p_group_by=%7B%7D&p_filters=%7B%22konto%22%3A%22ausgaben%22%2C%22jahr%22%3A2026%7D&p_version=2",
+ "status": 200,
+ "text": "{\"zeilen\": [{\"soll\": 524540138000.00, \"soll_pro_tag\": 1437096268.49, \"soll_pro_kopf\": 6276.12}], \"version\": 2, \"vorlage\": \"query_metric.v1\", \"hinweise\": [\"Einwohnerzahl für Jahre nach 2025 mit dem letzten verfügbaren Wert fortgeschrieben (Eurostat).\"], \"einheiten\": {\"soll\": \"EUR\", \"soll_pro_tag\": \"EUR\", \"soll_pro_kopf\": \"EUR\"}, \"parameter\": {\"limit\": 50, \"filter\": {\"jahr\": [2026], \"konto\": [\"ausgaben\"]}, \"absteigend\": true, \"kennzahlen\": [\"soll\", \"soll_pro_kopf\", \"soll_pro_tag\"], \"sortierung\": null, \"gruppierung\": []}, \"zeilen_gesamt\": 1, \"semantik_version\": 1}"
+}

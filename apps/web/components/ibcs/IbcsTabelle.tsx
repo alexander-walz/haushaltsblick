@@ -64,7 +64,7 @@ export function IbcsTabelle({ id, titel, modus, zeilen, summe, einheit, hinweise
   return (
     <figure aria-labelledby={`${id}-titel`} className="my-4">
       <figcaption><Titelblock id={`${id}-titel`} {...titel} /></figcaption>
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto" tabIndex={0} role="region" aria-labelledby={`${id}-titel`}>
         <table className="w-full border-collapse text-sm tabular-nums">
           <thead>
             <tr className="border-b-2 border-[var(--hb-ink)] text-xs">
