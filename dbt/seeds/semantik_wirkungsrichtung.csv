@@ -1,0 +1,4 @@
+regel_id,konto,typ,schluessel,richtung,rang,begruendung
+einnahmen,einnahmen,konto,,anstieg_positiv,2,"Mehreinnahmen gegenüber dem Plan verbessern den Haushaltsvollzug. Das ist haushaltsrechtlich eindeutig."
+kreditaufnahme,einnahmen,obergruppe,32,anstieg_negativ,1,"Mehr Schulden als geplant verschlechtern den Haushaltsvollzug."
+zinsen,ausgaben,funktion,830,anstieg_negativ,1,"Zinsen sind Kosten der Verschuldung ohne eigenen Leistungsgehalt."

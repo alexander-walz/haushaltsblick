@@ -92,10 +92,10 @@ describe('api.query_metric', () => {
     mitTestdaten(async (tx) => {
       const r = await abfrage(tx, { kennzahlen: ['abweichung', 'abweichung_rel', 'ist_quote'], gruppierung: ['jahr'], filter: { konto: 'ausgaben' } });
       expect(r.zeilen).toEqual([
-        { jahr: 2023, abweichung: null, abweichung_rel: null, ist_quote: null },
-        { jahr: 2024, abweichung: 10 * MRD, abweichung_rel: 0.066667, ist_quote: 1.066667 },
-        { jahr: 2025, abweichung: -20 * MRD, abweichung_rel: -0.125, ist_quote: 0.875 },
-        { jahr: 2026, abweichung: null, abweichung_rel: null, ist_quote: null },
+        { jahr: 2023, abweichung: null, abweichung_rel: null, ist_quote: null, wirkungsrichtung: 'neutral' },
+        { jahr: 2024, abweichung: 10 * MRD, abweichung_rel: 0.066667, ist_quote: 1.066667, wirkungsrichtung: 'neutral' },
+        { jahr: 2025, abweichung: -20 * MRD, abweichung_rel: -0.125, ist_quote: 0.875, wirkungsrichtung: 'neutral' },
+        { jahr: 2026, abweichung: null, abweichung_rel: null, ist_quote: null, wirkungsrichtung: 'neutral' },
       ]);
       expect(r.hinweise.some((h) => h.includes('Haushaltsplan (XML)'))).toBe(true);
     }));

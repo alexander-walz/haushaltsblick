@@ -76,3 +76,33 @@ seeds:
         data_tests: [not_null, unique]
       - name: einwohner
         data_tests: [not_null]
+  - name: semantik_wirkungsrichtung
+    config:
+      column_types:
+        regel_id: text
+        konto: text
+        typ: text
+        schluessel: text
+        richtung: text
+        rang: integer
+        begruendung: text
+    columns:
+      - name: regel_id
+        data_tests: [not_null, unique]
+      - name: konto
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['ausgaben', 'einnahmen']
+      - name: typ
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['konto', 'obergruppe', 'funktion']
+      - name: richtung
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['anstieg_positiv', 'anstieg_negativ']
+      - name: begruendung
+        data_tests: [not_null]
