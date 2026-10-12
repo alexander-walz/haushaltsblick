@@ -88,3 +88,29 @@ Keine. Alle Synonym-Zeilen bestanden DQ-19 in Task 1 ohne Änderung; nichts wurd
 - **Lineage-Lücken:** Die Kette endet stumm an Lücken (21 Fälle in den Echtdaten). Ein Hinweis in `hinweise` fehlt.
 - **Vorjahr mit Stand oder Quelle:** Beim Vorjahresvergleich mit Gruppierung nach `soll_quelle` oder `haushaltsstand` wird ein Teil mit dem ganzen Vorjahr verglichen. Ein Hinweis fehlt.
 - **Lokale Daten:** API-Soll, API-Ist und Systematik 2012 bis 2022 lokal nachladen, damit lokale Abnahmen ohne `dq13_ab_jahr` laufen.
+
+## Nachtrag: Inbetriebnahme in der Produktion (12.10.2026)
+
+Der geplante Lauf `ingest` ([Run 38204372828](https://github.com/alexander-walz/haushaltsblick/actions/runs/38204372828)) wendete die Migrationen von Plan 4 an. Danach lud er die Semantik-Seeds und veröffentlichte **Version 2** mit Semantik-Version 1 (Ampel gelb, Score 87,18, 0 neue und 0 geschlossene Zeilen, 100.726 Zeilen gesamt).
+
+Der Lauf endete trotzdem rot. bundeshaushalt.de antwortete während des ganzen Laufs mit HTTP 503, deshalb schlugen alle Abrufe (Soll-XML, Ist, Soll-API, Systematik) nach je vier Versuchen fehl. Die Daten blieben unverändert, weil der letzte erfolgreiche Lauf maßgeblich bleibt. Neu ist die Warnung DQ-12 (144 Schlüssel mit fehlgeschlagenem letztem Lauf). Gegen 07:10 Uhr antwortete die Quelle wieder mit HTTP 200. Der nächste Lauf holt die Abrufe nach.
+
+Das Schema `api` ist in der Data API freigeschaltet. Test über PostgREST mit dem Publishable Key (Rolle anon):
+
+| Aufruf | Ergebnis | Dauer |
+| --- | --- | --- |
+| `get_dataset_status` | Version 2, Semantik-Version 1, gelb | 210 bis 280 ms; der erste Aufruf direkt nach der Veröffentlichung lief einmal ins Limit von 3 s (Kaltstart) |
+| Ist 2024 Ausgaben | 474.753.727.609,58 € (Kontrollsumme) | 303 ms |
+| Soll 2020, 2026, 2027 | 508.529.758.000 € (Gesetz inkl. Nachtragshaushalt, Ist-Quote 0,872), 524.540.138.000 €, 555.435.744.000 € (Regierungsentwurf) | 815 ms |
+| Größte Einzelpläne 2026 mit Anteil und je Kopf | 11 (37,6 %, 2.361,18 €), 14 (15,8 %, 989,35 €), 60 | 684 ms |
+| Größter Zuwachs zum Vorjahr auf Titelebene 2026 | Zuschuss an die Rentenversicherung (+15,7 Mrd. €), Beschaffung von Munition (+5,9 Mrd. €) | 292 ms |
+| Alle Titel aller Jahre mit Vorjahr und Anteil (500 von 83.279 Zeilen) | Hinweise korrekt | **2,6 s**, knapp unter dem Limit |
+| Suche „Bundeswehr“, „BAföG“ | Einzelplan 14, Funktion 142, jeweils als Synonym | 0,9 bis 1,1 s |
+| Titel 041668421 (Sport) | Zeitreihe 2014 bis 2027, Ressortwechsel 2025 auf 2026 nachgeführt, Fundstelle `epl04.pdf#page=34` | 130 ms |
+| Glossar „Minderausgabe“ | Globale Minderausgabe | 112 ms |
+| Gruppierung mit SQL-Fragment | HTTP 400, „Unzulässige Gruppierung“ | 108 ms |
+| Tabelle in `mart` über die Data API | HTTP 406, Schema nicht freigegeben | |
+
+Folgerung für Plan 5:
+- Die größte Abfrage (alle Titel aller Jahre mit Vorjahr) braucht auf Supabase Free 2,6 s gegenüber 0,74 s lokal. Das Dashboard sollte solche Abfragen auf ein Jahr oder eine Ebene begrenzen; sonst `work_mem` an der Funktion prüfen.
+- Die Suche ist mit rund 1 s spürbar langsamer als lokal.
