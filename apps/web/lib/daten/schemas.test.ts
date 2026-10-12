@@ -22,6 +22,11 @@ describe('Schemas gegen echte API-Antworten', () => {
   it('list_kennzahlen', () => {
     expect(KennzahlenSchema.parse(fixture('kennzahlen')).kennzahlen).toHaveLength(17);
   });
+  it('list_kennzahlen mit neutraler Wirkungsregel', () => {
+    const regel = { regel_id: 'ruecklagenentnahme', konto: 'einnahmen', typ: 'obergruppe', schluessel: '35', richtung: 'neutral', begruendung: 'Nicht eindeutig.' };
+    const k = KennzahlenSchema.parse({ ...(fixture('kennzahlen') as object), wirkungsrichtung: [regel] });
+    expect(k.wirkungsrichtung[0]!.richtung).toBe('neutral');
+  });
   it('get_glossar', () => {
     expect(GlossarSchema.parse(fixture('glossar')).eintraege.length).toBeGreaterThan(0);
   });

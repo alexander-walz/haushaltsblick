@@ -49,8 +49,9 @@ IBCS färbt Abweichungen nach ihrer Wirkung. Im Bundeshaushalt ist „mehr ausge
 
 | Bereich | Wirkungsrichtung | Begründung |
 | --- | --- | --- |
-| Einnahmen ohne Kreditaufnahme, Ist gegenüber Soll | Anstieg positiv (grün) | Mehreinnahmen gegenüber dem Plan verbessern den Haushaltsvollzug. Das ist haushaltsrechtlich eindeutig. |
+| Einnahmen ohne Kreditaufnahme, Rücklagenentnahme und globale Posten, Ist gegenüber Soll | Anstieg positiv (grün) | Mehreinnahmen gegenüber dem Plan verbessern den Haushaltsvollzug. Das ist haushaltsrechtlich eindeutig. |
 | Kreditaufnahme (Einnahmen, Obergruppe 32), Ist gegenüber Soll | Anstieg negativ (rot) | Mehr Schulden als geplant verschlechtern den Haushaltsvollzug. |
+| Rücklagenentnahme (Einnahmen, Obergruppe 35) und Globale Mehr-/Mindereinnahmen (Obergruppe 37) | neutral | Weniger Entnahme schont Reserven, fehlt aber als Deckung; globale Posten sind Planungstechnik. Gut oder schlecht ist nicht eindeutig (Entscheidung Alexander, 12.10.2026). |
 | Zinsausgaben (Funktion 830), Ist gegenüber Soll | Anstieg negativ (rot) | Zinsen sind Kosten der Verschuldung ohne eigenen Leistungsgehalt. |
 | alle übrigen Ausgaben | neutral | Mehr oder weniger Ausgaben sind eine politische Frage. |
 | Globale Minderausgabe | neutral | Sie ist eine Planungstechnik. |
@@ -286,11 +287,11 @@ Diese Checkliste ist der Review-Maßstab. Sie lehnt sich an die Regeln des IBCS-
 
 - **Seed:** neuer Seed `dbt/seeds/semantik_wirkungsrichtung.csv` mit den Spalten `regel_id, konto, typ, schluessel, richtung, begruendung`:
   - `typ` ∈ {`konto`, `obergruppe`, `funktion`};
-  - `richtung` ∈ {`anstieg_positiv`, `anstieg_negativ`}.
+  - `richtung` ∈ {`anstieg_positiv`, `anstieg_negativ`, `neutral`}; `neutral` stellt eine Obergruppe ausdrücklich grau.
 - **Versionierung:** Er wird wie die übrige Semantik versioniert (`ops.sichere_semantik`, neue Tabelle `semantic.wirkungsrichtung`).
 - **Auflösung je Titel**, die spezifischste Regel gewinnt:
   1. Funktion 830 bei Ausgaben: negativ.
-  2. Obergruppe 32 bei Einnahmen: negativ.
+  2. Obergruppe 32 bei Einnahmen: negativ; Obergruppen 35 und 37 bei Einnahmen: neutral.
   3. übrige Einnahmen: positiv.
   4. sonst: neutral.
 - **API:** `query_metric` liefert je Zeile `wirkungsrichtung` ∈ {`anstieg_positiv`, `anstieg_negativ`, `neutral`}. Eine Gruppe mit verschiedenen Richtungen ist `neutral`. Die Datenbank liefert die Richtung für Plan-gegen-Ist-Abweichungen. Vorjahreskennzahlen färbt die App nach E21 immer neutral; das ist eine feste Darstellungsregel in `lib/ibcs`, keine fachliche Berechnung.
@@ -377,3 +378,4 @@ Entscheidungen aus der Abschlussrunde (Gesamtreview):
 19. **Vorzeichen kleiner Abweichungen:** Die Tabelle behält eine Einheit (IBCS). Abweichungen, die in dieser Einheit auf null runden, erscheinen als „+0,0“ oder „−0,0“, damit neben einem farbigen Balken immer ein Vorzeichen steht.
 20. **Suche ohne Datencache:** `search_entities` läuft mit `cache: 'no-store'`, weil sonst jede freie Eingabe einen Cache-Eintrag anlegt.
 21. **Zeitlimit je Versuch 15 s** ohne `AbortSignal`: Next.js schaltet für Aufrufe mit `signal` die Deduplizierung je Anfrage ab. Das Zeitlimit begrenzt Abruf und Lesen der Antwort und führt zur eigenen Fehlerseite.
+22. **Obergruppen 35 und 37 neutral:** Nach der Entscheidung von Alexander am 12.10.2026 färben Rücklagenentnahme und Globale Mehr-/Mindereinnahmen nicht mehr als Einnahmen. Dafür erlaubt `semantic.wirkungsrichtung` die Richtung `neutral` (Migration `20261014120100_wirkungsrichtung_neutral.sql`).

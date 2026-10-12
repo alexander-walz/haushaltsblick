@@ -5,7 +5,7 @@ import { NOTATION, type Szenario } from '@/lib/ibcs/notation';
 export const metadata: Metadata = { title: 'Methodik' };
 
 const SZENARIEN: readonly Szenario[] = ['ist', 'soll', 'entwurf', 'haushaltsplan', 'ist_vorjahr', 'soll_vorjahr'];
-const RICHTUNG: Record<string, string> = { anstieg_positiv: 'Anstieg grün', anstieg_negativ: 'Anstieg rot' };
+const RICHTUNG: Record<string, string> = { anstieg_positiv: 'Anstieg grün', anstieg_negativ: 'Anstieg rot', neutral: 'immer grau' };
 const KONTO: Record<string, string> = { ausgaben: 'Ausgaben', einnahmen: 'Einnahmen' };
 const TYP: Record<string, string> = { funktion: 'Funktion', obergruppe: 'Obergruppe' };
 

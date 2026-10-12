@@ -25,7 +25,7 @@ describe('Semantik-Versionen', () => {
       expect(n!.synonyme).toBe(n!.seed_synonyme);
       expect(n!.glossar).toBe(n!.seed_glossar);
       expect(n!.einwohner).toBe(n!.seed_einwohner);
-      expect(n!.wirkung).toBe(3);
+      expect(n!.wirkung).toBe(5);
       expect(n!.wirkung).toBe(n!.seed_wirkung);
     }));
 

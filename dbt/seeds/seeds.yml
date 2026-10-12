@@ -103,6 +103,6 @@ seeds:
         data_tests:
           - accepted_values:
               arguments:
-                values: ['anstieg_positiv', 'anstieg_negativ']
+                values: ['anstieg_positiv', 'anstieg_negativ', 'neutral']
       - name: begruendung
         data_tests: [not_null]

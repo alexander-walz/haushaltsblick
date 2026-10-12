@@ -89,7 +89,7 @@ export const KennzahlenSchema = z.object({
   })),
   wirkungsrichtung: z.array(z.object({
     regel_id: z.string(), konto: Konto, typ: z.string(), schluessel: z.string().nullable(),
-    richtung: z.enum(['anstieg_positiv', 'anstieg_negativ']), begruendung: z.string(),
+    richtung: z.enum(['anstieg_positiv', 'anstieg_negativ', 'neutral']), begruendung: z.string(),
   })),
 });
 
