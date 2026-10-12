@@ -25,6 +25,7 @@ describe('POST /api/revalidate', () => {
 
   it('lehnt alles ab, wenn kein Token konfiguriert ist', async () => {
     delete process.env.REVALIDATE_TOKEN;
-    expect((await POST(new Request('http://x', { method: 'POST', headers: { authorization: 'Bearer ' } }))).status).toBe(401);
+    expect((await POST(new Request('http://x', { method: 'POST', headers: { authorization: 'Bearer geheim-token' } }))).status).toBe(401);
+    expect(revalidateTag).not.toHaveBeenCalled();
   });
 });

@@ -20,7 +20,8 @@ export async function GET(request: Request): Promise<Response> {
         href: trefferZiel(t, s.jahr),
       })),
     });
-  } catch {
+  } catch (fehler) {
+    console.error('Suche fehlgeschlagen', fehler);
     return Response.json({ treffer: [], fehler: 'Die Suche ist gerade nicht verfügbar.' }, { status: 503 });
   }
 }
