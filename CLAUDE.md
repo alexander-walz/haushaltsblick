@@ -15,11 +15,12 @@ Umsetzungspläne: docs/superpowers/plans/.
 - Geheimnisse nur serverseitig, nie mit NEXT_PUBLIC_.
 - Kostenfrei bleiben: nichts einbauen, was einen kostenpflichtigen Tarif voraussetzt.
 
-## Stack (Stand Plan 4)
+## Stack (Stand Plan 5)
 Node 24, pnpm Workspaces, TypeScript strict (ESM, moduleResolution Bundler, Quellpakete ohne Build),
 Vitest, saxes, postgres (porsager), Supabase CLI 2.120.0 lokal über pnpm dlx.
 dbt-core 1.12.5 mit dbt-postgres 1.11.0 (Python 3.13, lokal in .venv über uv).
 Postgres-Erweiterungen pg_trgm und unaccent im Schema extensions.
+Web-App (apps/web): Next.js 16.3.6, React 19.3.0, Tailwind 4.3.3, Playwright 1.63.0, eigene SVG-Diagramme (E22).
 
 ## Befehle
 - pnpm test                 Unit-Tests aller Pakete
@@ -37,6 +38,9 @@ Postgres-Erweiterungen pg_trgm und unaccent im Schema extensions.
 - pnpm --filter @hb/ingest systematik --jahre alle     Bezeichnungen der Funktionen und Gruppierungen je Jahr (--konten, --sichten, --neu-laden)
 - pnpm --filter @hb/ingest veroeffentliche   Ampel aus dbt-Ergebnissen, DQ-Lauf speichern, bei grün/gelb neue Datenversion veröffentlichen und raw aufräumen (--ohne-aufraeumen: ohne Aufräumen; nach dbt mit --vars nur mit --testlauf)
 - pnpm --filter @hb/ingest raeume-auf   raw auf die maßgeblichen Läufe reduzieren (im Workflow erst nach erfolgreichem Archiv-Upload)
+- pnpm --filter @hb/web dev   Web-App lokal, braucht HB_API_URL und HB_API_KEY (Key nur in der Shell, nie in eine Datei)
+- pnpm --filter @hb/web test   Unit-Tests der Web-App
+- pnpm --filter @hb/web test:e2e   Ende-zu-Ende-Tests mit aufgezeichneten API-Antworten; neu aufnehmen mit HB_AUFNAHME_QUELLE (apps/web/e2e/aufnahmen/README.md)
 
 ## Konventionen
 - Fachbegriffe deutsch (soll, einzelplan_nr, ladeSollJahr), technische Begriffe englisch.
@@ -46,6 +50,9 @@ Postgres-Erweiterungen pg_trgm und unaccent im Schema extensions.
 - UI-Texte: deutsch, kurz, partnerschaftlich, keine Halbgeviert- oder Geviertstriche.
 - Funktionen im Schema api sind security definer mit festem search_path, lesen nur semantic.stand(version), haben keine Überladungen und werfen Fehler mit errcode 22023. Hilfsfunktionen liegen in semantic.
 - Jede Funktion in api und semantic entzieht PUBLIC ausdrücklich das Ausführungsrecht (revoke all ... from public); Default-Privilegien je Schema wirken dafür nicht. Ein Wächtertest in packages/ingest/src/abfrage/grundlagen.int.test.ts prüft das.
+- Web-App: Die App rechnet keine Zahlen, sie formatiert und skaliert nur. Eine Version je Seite (Datenstand).
+- Farbe nur nach E21 (Roadmap): Abweichungen neutral, Grün und Rot nur laut Wirkungsregeln aus der Datenbank.
+- Neue Diagramme nur über components/ibcs und lib/ibcs. Die IBCS-Checkliste in Spec 5.4 ist der Review-Maßstab.
 
 ## Arbeitsweise
 - Testgetrieben: erst roter Test, dann Code.

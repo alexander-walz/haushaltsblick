@@ -342,3 +342,30 @@ Diese Checkliste ist der Review-Maßstab. Sie lehnt sich an die Regeln des IBCS-
 - Zahl als Filterwert für Textspalten: seit der Fixwelle Plan 4 ein Fehler 22023. Die App übergibt Schlüssel immer als Text.
 - Suche: Rauschen bei der Schwelle 0,35 und einstellige Codes bleiben vorerst. Die App zeigt höchstens acht Vorschläge, Synonyme zuerst.
 - Speicher und `work_mem`: durch 7.2 und den Cache entschärft. Eine Entscheidung zu `work_mem` nur, wenn die Messung in 7.2 das Ziel verfehlt.
+
+## 11. Abweichungen bei der Umsetzung
+
+Entscheidungen beim Planen:
+
+1. **Spec 7.2, Tempo:** Messungen am 12.10.2026 in der Produktion zeigen einen kalten Datenbank-Cache als Ursache.
+   - Die Zinsabfrage lief beim ersten Aufruf ins Zeitlimit, beim zweiten in 288 ms.
+   - Ein Teilindex hilft nicht, weil alle Zeilen der Historie aktuell sind.
+   - Statt Indexarbeit: Cache in Next.js, ein Wiederholungsversuch bei `57014` und Aufwärmen der Hauptseiten nach jeder Veröffentlichung.
+2. **d3 entfällt:** Der Maßstab ist eine lineare Abbildung in zehn Zeilen (`lib/ibcs/skala.ts`).
+3. **Explorer mit dritter Sicht „nach Arten“** (Hauptgruppe › Obergruppe › Gruppierung › Titel). Die Suche liefert für Synonyme wie „Steuern“ oder „Kredite“ Gruppierungen, die sonst ins Leere führen würden.
+4. **Wirkungsregeln für die Methodik:** `list_kennzahlen` liefert zusätzlich die Wirkungsregeln, damit die Methodikseite sie aus der Datenbank zeigt.
+5. **Titelsteckbrief:** Die Wirkungsrichtung kommt aus `query_metric` für den Titel des gewählten Jahres und gilt für die ganze Zeitreihe; die Titelnummer und damit die Obergruppe bleibt über die Lineage gleich.
+6. **Ende-zu-Ende-Tests mit aufgezeichneten API-Antworten** statt Pixel-Snapshots. Schriftdarstellung unterscheidet sich je Betriebssystem, Pixelvergleiche wären unzuverlässig. Die Prüfung mit axe bleibt.
+7. **Datenzugriff per GET** (`Accept-Profile: api`) statt POST, damit Next.js die Antworten cachen kann. Am 12.10.2026 gegen die Produktion geprüft.
+8. **Soll als Kontur auch auf der Startseite:** Der Entwurf zeigte Soll vereinfacht gefüllt; IBCS verlangt die Kontur.
+9. **Drosselung der Suche:** über eine Firewall-Regel bei Vercel (Betrieb), nicht im Code.
+10. **Mobile Tabellen:** Nebenspalten werden unter 640 px ausgeblendet, nicht aufgeklappt.
+
+Entscheidungen aus der Umsetzung:
+
+11. **Akzentfarbe als Text:** eigenes Token `--hb-akzent-text` (`#d6007f` hell, `#ff5cb8` dunkel). Grund: Kontrast, gefunden mit axe.
+12. **Scroll-Bereiche der Tabellen:** fokussierbar als Region (`tabIndex=0`, `role=region`, `aria-labelledby`).
+13. **Aufnahme `list_kennzahlen`:** `wirkungsrichtung` ist von Hand ergänzt, bis Task 1 in Produktion läuft. Danach neu aufnehmen.
+14. **Schrift:** wird beim Build über `next/font/google` geladen und zur Laufzeit selbst gehostet. Für Plan 6 erwägen: `next/font/local`, damit CI keinen Netzzugriff braucht.
+15. **Wiederholversuch bei 57014:** sendet den Header `x-hb-versuch: 2`, weil Next identische GETs sonst zusammenfasst.
+16. **Explorer:** dritte Sicht „art“ (Gruppierungen), siehe Punkt 3.

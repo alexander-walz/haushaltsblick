@@ -5,7 +5,7 @@
 | Workflow | Auslöser | Aufgabe |
 | --- | --- | --- |
 | `ci` | Pull Request, Push auf `main` | Typecheck, Unit- und Integrationstests |
-| `ingest` | montags 04:17 UTC, manuell | Migrationen, Soll (XML und internalapi), Ist, Systematik, dbt (Seeds, Modelle, Tests), Rohdaten ins Release `rohdaten`, Ampel und Veröffentlichung, Rohdaten in `raw` aufräumen |
+| `ingest` | montags 04:17 UTC, manuell | Migrationen, Soll (XML und internalapi), Ist, Systematik, dbt (Seeds, Modelle, Tests), Rohdaten ins Release `rohdaten`, Ampel und Veröffentlichung, Rohdaten in `raw` aufräumen, Web-Cache auffrischen und aufwärmen |
 | `keepalive` | täglich 05:42 UTC, manuell | eine Abfrage, damit Supabase Free nicht nach 7 Tagen pausiert |
 
 `ingest` und `keepalive` laufen nur, wenn die Repository-Variable `HB_INGEST_AKTIV` den Wert `true` hat.
@@ -38,6 +38,7 @@ Geplante Workflows laufen nur auf dem Standard-Branch `main`.
 | „Semantik-Seeds fehlen in core“ | `dbt seed` ist nicht gelaufen, die Veröffentlichung findet keine Semantik | Schritt dbt im Bericht prüfen; lokal `pnpm dbt seed` ausführen |
 | „nicht veröffentlicht: dbt mit --vars ausgeführt (Testlauf)“ | dbt lief mit gelockerten Prüfungen (`--vars`) | im Workflow nicht vorgesehen; lokal bewusst mit `--testlauf` veröffentlichen |
 | Schritt „Rohdaten aufräumen“ übersprungen | Archiv-Upload oder Veröffentlichung nicht erfolgreich | nichts tun; `raw` bleibt vollständig, der nächste erfolgreiche Lauf räumt auf |
+| Schritt „Web-Cache auffrischen und aufwärmen“ schlägt fehl | Token in Vercel und GitHub stimmen nicht überein, oder die Web-App ist nicht erreichbar | `REVALIDATE_TOKEN` in Vercel und GitHub vergleichen; der Lauf bleibt grün, die Seiten zeigen bis zum Ablauf des Caches (24 h) den alten Stand |
 | Warnungen „Unbekanntes Feld …“ | API liefert neue Felder | kein Handlungsbedarf, beim nächsten Schema-Update aufnehmen |
 
 ## Datenqualität und Veröffentlichung
@@ -102,6 +103,18 @@ Dashboard und Agent lesen nur über die Funktionen im Schema `api` (Konzept Absc
    Erwartet: JSON mit `version`, `ampel` und `semantik_version`.
 3. **Synonyme oder Glossar pflegen:** CSV in `dbt/seeds/` (`semantik_synonyme.csv`, `semantik_glossar.csv`, ebenso Kennzahlen und Einwohner) per Pull Request ändern. Der nächste Lauf von `ingest` erzeugt eine neue Semantik-Version. DQ-19 gelb heißt: ein Synonym trifft in einem Jahr nichts; Zeitraum anpassen.
 4. **Zeitlimit:** Es gilt das Rollenlimit von Supabase (`anon` 3 s, `authenticated` 8 s). Lokal liefen alle Kontrollabfragen unter 1 s.
+
+## Web-App (Vercel)
+
+1. **Vercel-Projekt:** Projekt auf einem privaten Hobby-Konto anlegen, Import aus `alexander-walz/haushaltsblick`, Root Directory `apps/web`, Preset Next.js.
+2. **Umgebungsvariablen in Vercel:**
+   - `HB_API_URL`, `HB_API_KEY` (Publishable Key, nur serverseitig), `REVALIDATE_TOKEN`;
+   - `HB_IMPRESSUM_NAME`, `HB_IMPRESSUM_ANSCHRIFT` (Zeilen mit `|` getrennt), `HB_IMPRESSUM_KONTAKT`.
+3. **Token:** `REVALIDATE_TOKEN` lokal erzeugen, z. B. `python -c "import secrets; print(secrets.token_urlsafe(32))"`, und nur in Vercel und GitHub eintragen.
+4. **GitHub-Secrets:** `HB_WEB_URL` (z. B. `https://haushaltsblick.vercel.app`) und `REVALIDATE_TOKEN`. Fehlt eines, überspringt der Workflow den Schritt „Web-Cache auffrischen und aufwärmen“.
+5. **Firewall-Regel bei Vercel:** Rate Limit für `/api/suche`, z. B. 60 Anfragen je Minute und IP.
+6. **Cache:** Die Seiten cachen Abfragen bis zu 24 h. Nach jeder Veröffentlichung ruft der Workflow `/api/revalidate` auf und danach `/`, `/explorer`, `/plan-und-ist` und `/methodik` zum Aufwärmen, weil die Datenbank auf Supabase Free beim ersten Aufruf langsam ist. Die Antwortzeiten stehen im Bericht des Laufs.
+7. **Ende-zu-Ende-Aufnahmen erneuern:** nach Änderungen an Abfragen oder Daten mit `HB_AUFNAHME_QUELLE` (Produktions-URL der API) neu aufnehmen, siehe `apps/web/e2e/aufnahmen/README.md`. Der Key steht dabei nur in der Shell.
 
 ## Aufräumen
 
