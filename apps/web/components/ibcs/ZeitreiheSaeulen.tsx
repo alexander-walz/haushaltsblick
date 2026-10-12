@@ -17,9 +17,9 @@ export type Zeitpunkt = {
 };
 
 const SPALTE = 44;
-const OBEN = 18;
+const OBEN = 30;
 const HOEHE = 120;
-const UNTEN = 16;
+const UNTEN = 28;
 const ABW = 36;
 const runde = (n: number) => Math.round(n * 100) / 100;
 
@@ -31,7 +31,8 @@ export function ZeitreiheSaeulen({ id, titel, punkte, wirkung = 'neutral', hinwe
   const m = masstab(werte);
   const e = einheit ?? einheitFuer(werte);
   const abw = punkte.map((p) => p.abweichung ?? null);
-  const zeigeAbw = abw.some((w) => w !== null);
+  const zeigePlan = punkte.some((p) => p.haushaltsplan !== undefined && p.haushaltsplan !== null);
+  const zeigeAbw =abw.some((w) => w !== null);
   const ma = masstab(abw);
   const breite = Math.max(punkte.length, 1) * SPALTE;
   const hoehe = OBEN + HOEHE + UNTEN + (zeigeAbw ? ABW : 0);
@@ -48,12 +49,14 @@ export function ZeitreiheSaeulen({ id, titel, punkte, wirkung = 'neutral', hinwe
           const x = i * SPALTE + 8;
           const w = SPALTE - 16;
           const anzeige = p.ist ?? p.soll;
+          const gezeichnet = [p.soll, p.ist, p.haushaltsplan ?? null].filter((v): v is number => v !== null).map(y);
+          const rechts = i >= punkte.length / 2;
           return (
             <g key={p.jahr}>
               {p.markierung && (
                 <>
-                  <line x1={i * SPALTE} x2={i * SPALTE} y1={4} y2={OBEN + HOEHE} className="ibcs-trenner" />
-                  <text x={i * SPALTE + 2} y={10} className="ibcs-text-gedaempft">{p.markierung}</text>
+                  <line x1={i * SPALTE} x2={i * SPALTE} y1={12} y2={OBEN + HOEHE} className="ibcs-trenner" />
+                  <text x={rechts ? i * SPALTE - 2 : i * SPALTE + 2} y={9} textAnchor={rechts ? 'end' : 'start'} className="ibcs-text-gedaempft">{p.markierung}</text>
                 </>
               )}
               {p.soll !== null && (
@@ -68,11 +71,11 @@ export function ZeitreiheSaeulen({ id, titel, punkte, wirkung = 'neutral', hinwe
                   className={NOTATION.haushaltsplan.klasse} />
               )}
               {anzeige !== null && (
-                <text x={x + w / 2} y={runde(anzeige >= 0 ? Math.min(y(anzeige), y0) - 3 : Math.max(y(anzeige), y0) + 9)} textAnchor="middle" className="ibcs-text">
+                <text x={x + w / 2} y={runde(anzeige >= 0 ? Math.min(...gezeichnet, y0) - 3 : Math.max(...gezeichnet, y0) + 9)} textAnchor="middle" className="ibcs-text">
                   {betrag(anzeige, e)}
                 </text>
               )}
-              <text x={x + w / 2} y={OBEN + HOEHE + 11} textAnchor="middle" className="ibcs-text">
+              <text x={x + w / 2} y={OBEN + HOEHE + UNTEN - 4} textAnchor="middle" className="ibcs-text">
                 {p.sollSzenario === 'entwurf' ? `${p.jahr} E` : p.jahr}
               </text>
               {zeigeAbw && p.abweichung !== undefined && p.abweichung !== null && (
@@ -90,13 +93,14 @@ export function ZeitreiheSaeulen({ id, titel, punkte, wirkung = 'neutral', hinwe
       </svg>
       <table className="sr-only">
         <caption>{titel.wer}: Werte je Jahr in {e.kurz}</caption>
-        <thead><tr><th scope="col">Jahr</th><th scope="col">Soll</th><th scope="col">Ist</th><th scope="col">Abweichung</th></tr></thead>
+        <thead><tr><th scope="col">Jahr</th><th scope="col">Soll</th><th scope="col">Ist</th>{zeigePlan && <th scope="col">Haushaltsplan (XML)</th>}<th scope="col">Abweichung</th></tr></thead>
         <tbody>
           {punkte.map((p) => (
             <tr key={p.jahr}>
-              <th scope="row">{p.sollSzenario === 'entwurf' ? `${p.jahr} (Entwurf)` : p.jahr}</th>
+              <th scope="row">{[p.sollSzenario === 'entwurf' ? `${p.jahr} (Entwurf)` : String(p.jahr), p.markierung ? `(${p.markierung})` : ''].filter(Boolean).join(' ')}</th>
               <td>{betrag(p.soll, e)}</td>
               <td>{betrag(p.ist, e)}</td>
+              {zeigePlan && <td>{betrag(p.haushaltsplan ?? null, e)}</td>}
               <td>{betrag(p.abweichung ?? null, e, { vorzeichen: true })}</td>
             </tr>
           ))}
