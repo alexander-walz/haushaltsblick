@@ -1,7 +1,8 @@
 import { betragMitEinheit, euro } from './ibcs/format';
 
 /** Faktische Kernaussage der Startseite (E13, E23); Zahlen stammen aus query_metric. */
-export function kernaussageStart(jahr: number, soll: number, proKopf: number | null, proTag: number | null, entwurf: boolean): { titel: string; untertitel: string | null } {
+export function kernaussageStart(jahr: number, soll: number | null, proKopf: number | null, proTag: number | null, entwurf: boolean): { titel: string; untertitel: string | null } {
+  if (soll === null) return { titel: `Für ${jahr} liegen noch keine Zahlen vor.`, untertitel: null };
   const titel = entwurf
     ? `Der Regierungsentwurf sieht für ${jahr} Ausgaben von ${betragMitEinheit(soll)} vor.`
     : `Der Bund plant ${jahr} Ausgaben von ${betragMitEinheit(soll)}.`;

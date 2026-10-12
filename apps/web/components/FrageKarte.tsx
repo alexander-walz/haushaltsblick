@@ -19,14 +19,16 @@ export async function FrageKarte({ f, jahre, version }: { f: FrageDef; jahre: St
   const dim = a.gruppierung?.[0] ?? 'jahr';
   let inhalt;
   if (f.darstellung === 'zeitreihe') {
-    const punkte = r.zeilen.map((z) => {
-      const jahr = zahl(z, 'jahr') ?? 0;
-      return { jahr, soll: zahl(z, 'soll'), ist: zahl(z, 'ist'), sollSzenario: jahr === jahre.entwurf ? 'entwurf' as const : 'soll' as const };
+    const punkte = r.zeilen.flatMap((z) => {
+      const jahr = zahl(z, 'jahr');
+      if (jahr === null) return [];
+      return [{ jahr, soll: zahl(z, 'soll'), ist: zahl(z, 'ist'), sollSzenario: jahr === jahre.entwurf ? 'entwurf' as const : 'soll' as const }];
     });
     const e = einheitFuer(punkte.flatMap((p) => [p.soll, p.ist]));
     const von = a.filter?.jahr_von;
     const bis = a.filter?.jahr_bis;
-    inhalt = <ZeitreiheSaeulen id={id} titel={{ wer: f.wer, was: e.kurz, wann: `${von} bis ${bis} ${f.szenarien.join(', ')}` }} punkte={punkte} einheit={e} hinweise={r.hinweise} />;
+    const zeitraum = von !== undefined && bis !== undefined ? `${von} bis ${bis} ${f.szenarien.join(', ')}` : wann(f.jahr(jahre), f.szenarien);
+    inhalt = <ZeitreiheSaeulen id={id} titel={{ wer: f.wer, was: e.kurz, wann: zeitraum }} punkte={punkte} einheit={e} hinweise={r.hinweise} />;
   } else if (f.darstellung === 'abweichung') {
     const zeilen = r.zeilen
       .map((z) => {

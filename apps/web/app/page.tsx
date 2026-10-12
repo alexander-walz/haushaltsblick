@@ -21,7 +21,7 @@ export default async function Start() {
     frage({ kennzahlen: ['soll', 'soll_vj_abs'], gruppierung: ['einzelplan_nr'], filter: { konto: 'ausgaben', jahr: j }, sortierung: 'soll', limit: 6 }, v),
   ]);
   const g = gesamt.zeilen[0];
-  const aussage = kernaussageStart(j, zahl(g, 'soll') ?? 0, zahl(g, 'soll_pro_kopf'), zahl(g, 'soll_pro_tag'), false);
+  const aussage = kernaussageStart(j, zahl(g, 'soll'), zahl(g, 'soll_pro_kopf'), zahl(g, 'soll_pro_tag'), false);
   const p: ExplorerParameter = { jahr: j, konto: 'ausgaben', sicht: 'ressort', pfad: {} };
   const zeilen = struktur.zeilen.map((z) => {
     const s = text(z, 'einzelplan_nr') ?? '';

@@ -13,6 +13,13 @@ describe('Kernaussagen (faktisch, ohne Wertung)', () => {
     });
   });
 
+  it('Start ohne Kopfzahl', () => {
+    expect(kernaussageStart(2026, null, 6276.1, 1_437_096_268, false)).toEqual({
+      titel: 'Für 2026 liegen noch keine Zahlen vor.',
+      untertitel: null,
+    });
+  });
+
   it('Plan und Wirklichkeit', () => {
     expect(kernaussagePlanIst(2025, 'ausgaben', -7_000_000_000)).toBe('2025 wurden 7,0 Mrd. € weniger ausgegeben als geplant.');
     expect(kernaussagePlanIst(2025, 'einnahmen', 3_200_000_000)).toBe('2025 wurden 3,2 Mrd. € mehr eingenommen als geplant.');
