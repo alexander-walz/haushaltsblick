@@ -51,14 +51,31 @@ describe('rpc', () => {
   });
 
   it('wiederholt einmal bei Zeitlimit 57014', async () => {
-    let aufrufe = 0;
+    const koepfe: Headers[] = [];
+    const pausen: number[] = [];
     const daten = await rpc('f', {}, Schema, {
       konfig: KONFIG,
-      warten: async () => {},
-      abruf: async () => (++aufrufe === 1 ? antwort(500, { code: '57014', message: 'canceling statement due to statement timeout' }) : antwort(200, { ok: true })),
+      warten: async (ms) => { pausen.push(ms); },
+      abruf: async (_url, init) => {
+        koepfe.push(new Headers(init?.headers));
+        return koepfe.length === 1 ? antwort(500, { code: '57014', message: 'canceling statement due to statement timeout' }) : antwort(200, { ok: true });
+      },
     });
     expect(daten).toEqual({ ok: true });
-    expect(aufrufe).toBe(2);
+    expect(koepfe).toHaveLength(2);
+    expect(koepfe[0]?.get('x-hb-versuch')).toBeNull();
+    expect(koepfe[1]?.get('x-hb-versuch')).toBe('2');
+    expect(pausen).toEqual([400]);
+  });
+
+  it('übergibt die Cache-Optionen von Next.js', async () => {
+    let optionen: RequestInit | undefined;
+    await rpc('f', {}, Schema, {
+      konfig: KONFIG,
+      abruf: async (_url, init) => { optionen = init; return antwort(200, { ok: true }); },
+    });
+    expect(optionen?.cache).toBe('force-cache');
+    expect((optionen as { next?: unknown }).next).toEqual({ revalidate: 86400, tags: ['datenstand'] });
   });
 
   it('gibt nach dem zweiten Zeitlimit auf', async () => {

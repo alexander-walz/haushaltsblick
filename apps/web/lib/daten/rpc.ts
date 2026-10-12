@@ -45,8 +45,12 @@ export async function rpc<T>(funktion: string, args: Readonly<Record<string, Rpc
   const warten = opt.warten ?? ((ms: number) => new Promise<void>((fertig) => setTimeout(fertig, ms)));
   const url = rpcUrl(konfig.url, funktion, args);
   for (let versuch = 1; ; versuch++) {
+    // Next.js dedupliziert gleiche GET-Aufrufe je Anfrage, auch Fehlerantworten. Ab dem zweiten Versuch
+    // macht die Kopfzeile den Aufruf unterscheidbar; der erste bleibt unverändert (stabiler Cache-Schlüssel).
+    const kopf: Record<string, string> = { apikey: konfig.key, 'Accept-Profile': 'api', Accept: 'application/json' };
+    if (versuch > 1) kopf['x-hb-versuch'] = String(versuch);
     const antwort = await abruf(url, {
-      headers: { apikey: konfig.key, 'Accept-Profile': 'api', Accept: 'application/json' },
+      headers: kopf,
       cache: 'force-cache',
       next: { revalidate: 86_400, tags: [CACHE_TAG] },
     } as RequestInit);
