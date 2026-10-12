@@ -127,12 +127,11 @@ jobs:
           REVALIDATE_TOKEN: ${{ secrets.REVALIDATE_TOKEN }}
         run: |
           if [ -z "$HB_WEB_URL" ] || [ -z "$REVALIDATE_TOKEN" ]; then echo "Web-App noch nicht eingerichtet, übersprungen."; exit 0; fi
-          curl -fsS -X POST "$HB_WEB_URL/api/revalidate" -H "Authorization: Bearer $REVALIDATE_TOKEN" > /dev/null
+          curl -fsS --max-time 30 -X POST "$HB_WEB_URL/api/revalidate" -H "Authorization: Bearer $REVALIDATE_TOKEN" > /dev/null
           echo "Web-Cache aufgefrischt." | tee -a bericht.md
           # Erste Aufrufe wärmen Datenbank und Next.js-Cache vor (kalter Cache auf Supabase Free, Befund 12.10.2026)
           for seite in / /explorer /plan-und-ist /methodik; do
-            curl -sS -o /dev/null -w "$seite: HTTP %{http_code}, %{time_total} s
-" "$HB_WEB_URL$seite" | tee -a bericht.md
+            curl -sS --max-time 60 -o /dev/null -w "$seite: HTTP %{http_code}, %{time_total} s\n" "$HB_WEB_URL$seite" | tee -a bericht.md
           done
       - name: Bericht
         if: always()
