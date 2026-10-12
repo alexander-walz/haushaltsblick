@@ -53,6 +53,13 @@ test('Plan und Wirklichkeit zeigt Kernaussage und beide Diagramme', async ({ pag
   await expect(page.getByRole('status')).toContainText('noch kein Ist');
 });
 
+test('Seiten senden Sicherheits-Header', async ({ request }) => {
+  const antwort = await request.get('/impressum');
+  expect(antwort.headers()['x-content-type-options']).toBe('nosniff');
+  expect(antwort.headers()['referrer-policy']).toBe('strict-origin-when-cross-origin');
+  expect(antwort.headers()['x-frame-options']).toBe('DENY');
+});
+
 test('Unbekannter Titel liefert 404', async ({ page }) => {
   const antwort = await page.goto('/titel/2025/999999999');
   expect(antwort?.status()).toBe(404);

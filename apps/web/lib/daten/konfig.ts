@@ -1,3 +1,5 @@
+import 'server-only';
+
 export type Konfiguration = { url: string; key: string };
 
 /** Zugang zur Data API (nur serverseitig; der Publishable Key ist öffentlich, wird aber nicht an den Browser gegeben). */

@@ -1,3 +1,4 @@
+import 'server-only';
 import type { z } from 'zod';
 import { konfiguration, type Konfiguration } from './konfig';
 
@@ -13,8 +14,17 @@ export class ApiFehler extends Error {
 /** Alle API-Antworten tragen diesen Cache-Tag; /api/revalidate verwirft ihn nach jeder Veröffentlichung. */
 export const CACHE_TAG = 'datenstand';
 const ZEITLIMIT = '57014';
+/** Zeitlimit je Versuch; danach zeigt die Seite die eigene Fehlerseite statt Vercels 504 (Spec 6.9). */
+export const ZEITLIMIT_MS = 15_000;
 
-export type RpcOptionen = { abruf?: typeof fetch; konfig?: Konfiguration; warten?: (ms: number) => Promise<void> };
+export type RpcOptionen = {
+  abruf?: typeof fetch;
+  konfig?: Konfiguration;
+  warten?: (ms: number) => Promise<void>;
+  /** `no-store` für Abrufe mit freier Eingabe (Suche): kein Eintrag im Datencache, kein Tag. */
+  cache?: 'no-store';
+  zeitlimitMs?: number;
+};
 
 function pgArray(werte: readonly string[]): string {
   return `{${werte.map((w) => `"${w.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`).join(',')}}`;
@@ -39,6 +49,19 @@ function feld(daten: unknown, name: string): string | null {
   return typeof wert === 'string' ? wert : null;
 }
 
+/**
+ * Begrenzt Abruf und Lesen der Antwort. Bewusst ohne AbortSignal: Next.js schaltet für Aufrufe mit `signal` die
+ * Deduplizierung je Anfrage ab (next/dist/server/lib/dedupe-fetch.js), dann liefen etwa Fuß und Seite doppelt.
+ * Der hängende Abruf läuft im Hintergrund aus, die Seite wartet nicht länger.
+ */
+function mitZeitlimit<T>(arbeit: Promise<T>, ms: number, funktion: string): Promise<T> {
+  let uhr: ReturnType<typeof setTimeout> | undefined;
+  const ablauf = new Promise<never>((_, abbruch) => {
+    uhr = setTimeout(() => abbruch(new ApiFehler(`${funktion} hat nicht innerhalb von ${ms / 1000} s geantwortet`, 504, 'ZEITLIMIT')), ms);
+  });
+  return Promise.race([arbeit, ablauf]).finally(() => clearTimeout(uhr));
+}
+
 export async function rpc<T>(funktion: string, args: Readonly<Record<string, RpcWert>>, schema: z.ZodType<T>, opt: RpcOptionen = {}): Promise<T> {
   const konfig = opt.konfig ?? konfiguration();
   const abruf = opt.abruf ?? fetch;
@@ -49,12 +72,13 @@ export async function rpc<T>(funktion: string, args: Readonly<Record<string, Rpc
     // macht die Kopfzeile den Aufruf unterscheidbar; der erste bleibt unverändert (stabiler Cache-Schlüssel).
     const kopf: Record<string, string> = { apikey: konfig.key, 'Accept-Profile': 'api', Accept: 'application/json' };
     if (versuch > 1) kopf['x-hb-versuch'] = String(versuch);
-    const antwort = await abruf(url, {
-      headers: kopf,
-      cache: 'force-cache',
-      next: { revalidate: 86_400, tags: [CACHE_TAG] },
-    } as RequestInit);
-    const text = await antwort.text();
+    const init = opt.cache === 'no-store'
+      ? { headers: kopf, cache: 'no-store' }
+      : { headers: kopf, cache: 'force-cache', next: { revalidate: 86_400, tags: [CACHE_TAG] } };
+    const { antwort, text } = await mitZeitlimit((async () => {
+      const a = await abruf(url, init as RequestInit);
+      return { antwort: a, text: await a.text() };
+    })(), opt.zeitlimitMs ?? ZEITLIMIT_MS, funktion);
     let daten: unknown;
     try {
       daten = JSON.parse(text);

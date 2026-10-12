@@ -107,4 +107,36 @@ describe('rpc', () => {
     const fehler = await rpc('f', {}, Schema, { konfig: KONFIG, abruf: async () => new Response('<html>', { status: 502 }) }).catch((e: unknown) => e);
     expect(fehler).toMatchObject({ status: 502, code: null });
   });
+
+  it('verzichtet auf Wunsch auf den Datencache (no-store, ohne Tag)', async () => {
+    let optionen: RequestInit | undefined;
+    await rpc('f', {}, Schema, {
+      konfig: KONFIG,
+      cache: 'no-store',
+      abruf: async (_url, init) => { optionen = init; return antwort(200, { ok: true }); },
+    });
+    expect(optionen?.cache).toBe('no-store');
+    expect((optionen as { next?: unknown }).next).toBeUndefined();
+  });
+
+  it('bricht einen hängenden Abruf nach dem Zeitlimit mit ApiFehler ab', async () => {
+    let aufrufe = 0;
+    const fehler = await rpc('f', {}, Schema, {
+      konfig: KONFIG,
+      zeitlimitMs: 20,
+      abruf: () => { aufrufe++; return new Promise<Response>(() => {}); },
+    }).catch((e: unknown) => e);
+    expect(fehler).toBeInstanceOf(ApiFehler);
+    expect(fehler).toMatchObject({ status: 504, code: 'ZEITLIMIT' });
+    expect(aufrufe).toBe(1);
+  });
+
+  it('begrenzt auch das Lesen der Antwort', async () => {
+    const fehler = await rpc('f', {}, Schema, {
+      konfig: KONFIG,
+      zeitlimitMs: 20,
+      abruf: async () => new Response(new ReadableStream({ start() {} }), { status: 200 }),
+    }).catch((e: unknown) => e);
+    expect(fehler).toMatchObject({ code: 'ZEITLIMIT' });
+  });
 });

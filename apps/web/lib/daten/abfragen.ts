@@ -29,7 +29,8 @@ export function frage(a: Abfrage, version: number, opt?: RpcOptionen) {
 }
 
 export function suche(q: string, p: { jahr?: number; typ?: string; limit?: number; version?: number } = {}, opt?: RpcOptionen) {
-  return rpc('search_entities', { p_q: q, p_jahr: p.jahr, p_typ: p.typ, p_limit: p.limit, p_version: p.version }, SucheSchema, opt);
+  // Jede freie Eingabe wäre ein eigener Cache-Eintrag (Kontingent des Hobby-Tarifs); die Suche ist indexgestützt und billig.
+  return rpc('search_entities', { p_q: q, p_jahr: p.jahr, p_typ: p.typ, p_limit: p.limit, p_version: p.version }, SucheSchema, { ...opt, cache: 'no-store' });
 }
 
 export function titelDetail(titelKey: string, jahr: number, version: number, opt?: RpcOptionen) {
