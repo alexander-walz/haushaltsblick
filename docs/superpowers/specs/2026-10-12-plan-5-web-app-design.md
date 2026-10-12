@@ -369,3 +369,11 @@ Entscheidungen aus der Umsetzung:
 14. **Schrift:** wird beim Build über `next/font/google` geladen und zur Laufzeit selbst gehostet. Für Plan 6 erwägen: `next/font/local`, damit CI keinen Netzzugriff braucht.
 15. **Wiederholversuch bei 57014:** sendet den Header `x-hb-versuch: 2`, weil Next identische GETs sonst zusammenfasst.
 16. **Explorer:** dritte Sicht „art“ (Gruppierungen), siehe Punkt 3.
+
+Entscheidungen aus der Abschlussrunde (Gesamtreview):
+
+17. **Skalierungsmarker:** Komponente `components/ibcs/Skalierungsmarker.tsx`, gesetzt im Titelblock. Auf der Startseite ist der Einzelplan-Überblick der Bezugsmaßstab; jede Fragekarte skaliert für sich und trägt den Marker „Eigener Maßstab“. Im Explorer trägt jede Drilldown-Ebene unterhalb des Bundes den Marker, weil sie einen anderen Maßstab als die Ebene darüber hat.
+18. **Verweis auf die Farbregel:** Jede Darstellung, die tatsächlich grün oder rot färbt, zeigt eine Fußnote mit Link auf `/methodik#farben` (`FarbregelHinweis` über `Fussnoten`). Neutrale Darstellungen bleiben ohne.
+19. **Vorzeichen kleiner Abweichungen:** Die Tabelle behält eine Einheit (IBCS). Abweichungen, die in dieser Einheit auf null runden, erscheinen als „+0,0“ oder „−0,0“, damit neben einem farbigen Balken immer ein Vorzeichen steht.
+20. **Suche ohne Datencache:** `search_entities` läuft mit `cache: 'no-store'`, weil sonst jede freie Eingabe einen Cache-Eintrag anlegt.
+21. **Zeitlimit je Versuch 15 s** ohne `AbortSignal`: Next.js schaltet für Aufrufe mit `signal` die Deduplizierung je Anfrage ab. Das Zeitlimit begrenzt Abruf und Lesen der Antwort und führt zur eigenen Fehlerseite.

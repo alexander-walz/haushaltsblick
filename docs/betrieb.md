@@ -38,7 +38,7 @@ Geplante Workflows laufen nur auf dem Standard-Branch `main`.
 | „Semantik-Seeds fehlen in core“ | `dbt seed` ist nicht gelaufen, die Veröffentlichung findet keine Semantik | Schritt dbt im Bericht prüfen; lokal `pnpm dbt seed` ausführen |
 | „nicht veröffentlicht: dbt mit --vars ausgeführt (Testlauf)“ | dbt lief mit gelockerten Prüfungen (`--vars`) | im Workflow nicht vorgesehen; lokal bewusst mit `--testlauf` veröffentlichen |
 | Schritt „Rohdaten aufräumen“ übersprungen | Archiv-Upload oder Veröffentlichung nicht erfolgreich | nichts tun; `raw` bleibt vollständig, der nächste erfolgreiche Lauf räumt auf |
-| Schritt „Web-Cache auffrischen und aufwärmen“ schlägt fehl | Token in Vercel und GitHub stimmen nicht überein, oder die Web-App ist nicht erreichbar | `REVALIDATE_TOKEN` in Vercel und GitHub vergleichen; der Lauf bleibt grün, die Seiten zeigen bis zum Ablauf des Caches (24 h) den alten Stand |
+| Bericht: „Warnung: Web-Cache nicht aufgefrischt …“ | Token in Vercel und GitHub stimmen nicht überein, oder die Web-App ist nicht erreichbar | `REVALIDATE_TOKEN` in Vercel und GitHub vergleichen; der Lauf bleibt grün, die Seiten zeigen bis zum Ablauf des Caches (24 h) den alten Stand |
 | Warnungen „Unbekanntes Feld …“ | API liefert neue Felder | kein Handlungsbedarf, beim nächsten Schema-Update aufnehmen |
 
 ## Datenqualität und Veröffentlichung
@@ -106,6 +106,9 @@ Dashboard und Agent lesen nur über die Funktionen im Schema `api` (Konzept Absc
 
 ## Web-App (Vercel)
 
+Reihenfolge beim ersten Livegang: erst die Migration in Produktion, dann die Web-App. Die Web-App erwartet `wirkungsrichtung` aus `api.list_kennzahlen` und `api.query_metric`; ohne die Migration scheitert `/methodik` an der Schemaprüfung, auch in jeder Vercel-Vorschau gegen die Produktion.
+
+0. **Migration zuerst:** nach dem Merge Workflow `ingest` manuell auslösen (er spielt die Migrationen ein), Lauf grün abwarten, danach eine Vorschau der Web-App prüfen (insbesondere `/methodik`) und erst dann live schalten.
 1. **Vercel-Projekt:** Projekt auf einem privaten Hobby-Konto anlegen, Import aus `alexander-walz/haushaltsblick`, Root Directory `apps/web`, Preset Next.js.
 2. **Umgebungsvariablen in Vercel:**
    - `HB_API_URL`, `HB_API_KEY` (Publishable Key, nur serverseitig), `REVALIDATE_TOKEN`;

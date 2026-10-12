@@ -216,9 +216,9 @@ Der Stack ist bewusst schlank und Vercel-nativ, mit dbt als einzigem Baustein au
 | Schicht | Wahl | Version (Stand 07.10.2026) | Begründung |
 | --- | --- | --- | --- |
 | Web-Framework | Next.js App Router, React, TypeScript strict | Next.js 16.x (aktuell 16.3), React 19 | Server Components, Streaming, native Vercel-Integration |
-| UI | Tailwind CSS v4, shadcn/ui, lucide-react | aktuell | Eigenes Design-System in Magenta und Anthrazit ohne Komponenten-Lock-in |
+| UI | Tailwind CSS v4, lucide-react, eigene Komponenten (Plan 5: kein shadcn/ui) | aktuell | Eigenes Design-System in Magenta und Anthrazit ohne Komponenten-Lock-in |
 | Diagramme | eigene SVG-Komponenten (E22), keine Bibliothek | React, serverseitig gerendert | volle Kontrolle über IBCS-Details; Treemap, Sankey und Wasserfall siehe Ausbaustufen (Abschnitt 19) |
-| Tabellen | TanStack Table | 8.x | Sortierung, virtuelles Scrollen, IBCS-Spalten |
+| Tabellen | eigene `IbcsTabelle` (Plan 5: kein TanStack Table) | React, serverseitig gerendert | IBCS-Spalten mit eingebetteten Balken; Sortierung übernimmt die Abfrage |
 | KI-Laufzeit | AI SDK (`ai`, `@ai-sdk/react`, `@ai-sdk/anthropic`) | 7.x (GA seit 25.06.2026) | `ToolLoopAgent`, typisierte Tools, Telemetrie, Message Parts |
 | Sprachmodell | Claude Sonnet 5.5 (`claude-sonnet-5-5`) für den Agenten, Claude Haiku 4.5 (`claude-haiku-4-5-20251001`) für Eingangsprüfung und Titel | aktuell | Starkes Tool-Calling, günstiger Wächter |
 | Datenbank | Supabase Postgres, Region Frankfurt (`eu-central-1`) | aktuell | RLS, RPC, pg\_trgm, pgvector, pg\_cron, Storage |
@@ -255,7 +255,7 @@ haushaltsblick/
 │       ├── components/
 │       │   ├── ibcs/             # eigene SVG-Diagramme und Tabelle (E22)
 │       │   ├── chat/             # Chat-Panel, Tool-Parts, Beleg-Karte
-│       │   └── ui/               # shadcn-Komponenten im roosi Theme
+│       │   └── ui/               # eigene Bedienelemente (Kopf, Fuß, Suche, Umschalter)
 │       └── lib/
 │           ├── agent/            # Agent, Tools, Prompts, Zahlenwächter
 │           ├── receipts/         # Hashing, Signatur, Replay
@@ -1412,7 +1412,7 @@ darunter Angriffe: unbekannte Dimension, SQL in Filterwerten, Limit 10000, fremd
 P4 · Dashboard
 Lies Abschnitt 13. Setze die Design-Tokens um und baue die Seiten in dieser Reihenfolge:
 Überblick, Explorer, Titel-Detail, Vergleich, Aufgaben, Datenqualität, Methodik.
-Alle Daten über RPC in Server Components, Cache-Tag = dataset_version_id. Eigene SVG-Komponenten (E22) mit
+Alle Daten über RPC in Server Components, Cache-Tag `datenstand` (Plan 5; /api/revalidate verwirft ihn nach jeder Veröffentlichung). Eigene SVG-Komponenten (E22) mit
 IBCS-Varianten (Ist gefüllt, Soll Kontur). Jede Grafik mit Tabellenalternative.
 Prüfe nach jeder Seite mit Playwright-MCP Screenshots in hell und dunkel, mobil und Desktop.
 ```
