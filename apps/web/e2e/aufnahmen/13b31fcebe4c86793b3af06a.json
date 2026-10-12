@@ -1,0 +1,5 @@
+{
+ "pfad": "/rest/v1/rpc/query_metric?p_metrics=%7B%22soll%22%2C%22soll_vj_abs%22%2C%22soll_anteil%22%7D&p_group_by=%7B%7D&p_filters=%7B%22konto%22%3A%22ausgaben%22%2C%22jahr%22%3A2026%7D&p_version=2",
+ "status": 200,
+ "text": "{\"zeilen\": [{\"soll\": 524540138000.00, \"soll_anteil\": 1.000000, \"soll_vj_abs\": 21994003000.00}], \"version\": 2, \"vorlage\": \"query_metric.v1\", \"hinweise\": [\"Vorjahresvergleich je Schlüssel. Umbenennungen und Ressortwechsel sind nicht nachgeführt.\"], \"einheiten\": {\"soll\": \"EUR\", \"soll_anteil\": \"Anteil\", \"soll_vj_abs\": \"EUR\"}, \"parameter\": {\"limit\": 50, \"filter\": {\"jahr\": [2026], \"konto\": [\"ausgaben\"]}, \"absteigend\": true, \"kennzahlen\": [\"soll\", \"soll_vj_abs\", \"soll_anteil\"], \"sortierung\": null, \"gruppierung\": []}, \"zeilen_gesamt\": 1, \"semantik_version\": 1}"
+}

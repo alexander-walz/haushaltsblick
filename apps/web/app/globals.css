@@ -1,0 +1,73 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-titillium), "Titillium Web", system-ui, sans-serif;
+}
+
+:root {
+  --hb-ink: #414042;
+  --hb-gedaempft: #6b6b70;
+  --hb-akzent: #ec008c;
+  --hb-akzent-text: #d6007f;
+  --hb-bg: #ffffff;
+  --hb-flaeche: #f6f6f7;
+  --hb-linie: #e3e3e6;
+  --hb-ist: #414042;
+  --hb-hellgrau: #b8b8bd;
+  --hb-neutral: #8a8a90;
+  --hb-pos: #2e7d32;
+  --hb-neg: #c62828;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --hb-ink: #ececee;
+    --hb-akzent-text: #ff5cb8;
+    --hb-gedaempft: #a6a6ad;
+    --hb-bg: #161618;
+    --hb-flaeche: #1f1f22;
+    --hb-linie: #34343a;
+    --hb-ist: #ececee;
+    --hb-hellgrau: #6a6a70;
+    --hb-neutral: #9a9aa1;
+    --hb-pos: #66bb6a;
+    --hb-neg: #ef5350;
+    color-scheme: dark;
+  }
+}
+
+body {
+  background: var(--hb-bg);
+  color: var(--hb-ink);
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
+}
+
+a { text-underline-offset: 2px; text-decoration-color: var(--hb-linie); }
+a:hover { color: var(--hb-akzent-text); text-decoration-color: currentColor; }
+:focus-visible { outline: 2px solid var(--hb-akzent); outline-offset: 2px; }
+
+@media (prefers-reduced-motion: no-preference) {
+  a, button { transition: color 150ms ease; }
+}
+
+/* IBCS-Notation (Plan 5, Abschnitt 5.1 der Spec) */
+.ibcs-ist { fill: var(--hb-ist); }
+.ibcs-soll, .ibcs-entwurf { fill: var(--hb-bg); stroke: var(--hb-ink); stroke-width: 1.5; }
+.ibcs-haushaltsplan { fill: none; stroke: var(--hb-ink); stroke-width: 1.2; stroke-dasharray: 3 2; }
+.ibcs-ist-vorjahr { fill: var(--hb-hellgrau); }
+.ibcs-soll-vorjahr { fill: var(--hb-bg); stroke: var(--hb-hellgrau); stroke-width: 1.5; }
+.ibcs-pos { fill: var(--hb-pos); }
+.ibcs-neg { fill: var(--hb-neg); }
+.ibcs-neutral { fill: var(--hb-neutral); }
+.ibcs-gekappt { fill: var(--hb-bg); stroke: var(--hb-ink); stroke-width: 1.5; }
+.ibcs-achse { stroke: var(--hb-ink); stroke-width: 1; }
+.ibcs-trenner { stroke: var(--hb-linie); stroke-width: 1; stroke-dasharray: 2 2; }
+.ibcs-text { fill: var(--hb-ink); font-size: 9px; }
+.ibcs-text-gedaempft { fill: var(--hb-gedaempft); font-size: 8px; }
+
+.hb-ampel { display: inline-block; width: 0.6rem; height: 0.6rem; border-radius: 9999px; margin-right: 0.3rem; }
+.hb-ampel-green { background: #2e7d32; }
+.hb-ampel-yellow { background: #f2b100; }
+.hb-ampel-red { background: #c62828; }

@@ -17,12 +17,16 @@ describe('Semantik-Versionen', () => {
           (select count(*)::int from semantic.glossar where semantik_version_id = ${a!.id}) as glossar,
           (select count(*)::int from core.semantik_glossar) as seed_glossar,
           (select count(*)::int from semantic.einwohner where semantik_version_id = ${a!.id}) as einwohner,
-          (select count(*)::int from core.semantik_einwohner) as seed_einwohner`;
+          (select count(*)::int from core.semantik_einwohner) as seed_einwohner,
+          (select count(*)::int from semantic.wirkungsrichtung where semantik_version_id = ${a!.id}) as wirkung,
+          (select count(*)::int from core.semantik_wirkungsrichtung) as seed_wirkung`;
       expect(n!.kennzahlen).toBe(17);
       expect(n!.kennzahlen).toBe(n!.seed_kennzahlen);
       expect(n!.synonyme).toBe(n!.seed_synonyme);
       expect(n!.glossar).toBe(n!.seed_glossar);
       expect(n!.einwohner).toBe(n!.seed_einwohner);
+      expect(n!.wirkung).toBe(5);
+      expect(n!.wirkung).toBe(n!.seed_wirkung);
     }));
 
   it('legt bei geändertem Inhalt eine neue Semantik-Version an und lässt die alte unverändert', () =>

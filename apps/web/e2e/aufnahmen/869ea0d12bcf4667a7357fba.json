@@ -1,0 +1,5 @@
+{
+ "pfad": "/rest/v1/rpc/query_metric?p_metrics=%7B%22soll%22%7D&p_group_by=%7B%22fkt%22%7D&p_filters=%7B%22konto%22%3A%22ausgaben%22%2C%22jahr%22%3A2026%2C%22fkt%22%3A%5B%22231%22%2C%22232%22%5D%7D&p_order_by=soll&p_version=2",
+ "status": 200,
+ "text": "{\"zeilen\": [{\"fkt\": \"232\", \"soll\": 7512500000.00, \"funktion_text\": \"Elterngeld, Erziehungsgeld und Mutterschutz\"}, {\"fkt\": \"231\", \"soll\": 3602500000.00, \"funktion_text\": \"Kindergeld, Kinderzuschlag\"}], \"version\": 2, \"vorlage\": \"query_metric.v1\", \"hinweise\": [], \"einheiten\": {\"soll\": \"EUR\"}, \"parameter\": {\"limit\": 50, \"filter\": {\"fkt\": [\"231\", \"232\"], \"jahr\": [2026], \"konto\": [\"ausgaben\"]}, \"absteigend\": true, \"kennzahlen\": [\"soll\"], \"sortierung\": \"soll\", \"gruppierung\": [\"fkt\"]}, \"zeilen_gesamt\": 2, \"semantik_version\": 1}"
+}

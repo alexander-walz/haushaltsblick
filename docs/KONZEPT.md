@@ -216,9 +216,9 @@ Der Stack ist bewusst schlank und Vercel-nativ, mit dbt als einzigem Baustein au
 | Schicht | Wahl | Version (Stand 07.10.2026) | Begründung |
 | --- | --- | --- | --- |
 | Web-Framework | Next.js App Router, React, TypeScript strict | Next.js 16.x (aktuell 16.3), React 19 | Server Components, Streaming, native Vercel-Integration |
-| UI | Tailwind CSS v4, shadcn/ui, lucide-react | aktuell | Eigenes Design-System in Magenta und Anthrazit ohne Komponenten-Lock-in |
-| Diagramme | Apache ECharts (`echarts-for-react`) | 6.x | Treemap, Sunburst, Sankey, Wasserfall in einer Bibliothek, SVG-Renderer |
-| Tabellen | TanStack Table | 8.x | Sortierung, virtuelles Scrollen, IBCS-Spalten |
+| UI | Tailwind CSS v4, lucide-react, eigene Komponenten (Plan 5: kein shadcn/ui) | aktuell | Eigenes Design-System in Magenta und Anthrazit ohne Komponenten-Lock-in |
+| Diagramme | eigene SVG-Komponenten (E22), keine Bibliothek | React, serverseitig gerendert | volle Kontrolle über IBCS-Details; Treemap, Sankey und Wasserfall siehe Ausbaustufen (Abschnitt 19) |
+| Tabellen | eigene `IbcsTabelle` (Plan 5: kein TanStack Table) | React, serverseitig gerendert | IBCS-Spalten mit eingebetteten Balken; Sortierung übernimmt die Abfrage |
 | KI-Laufzeit | AI SDK (`ai`, `@ai-sdk/react`, `@ai-sdk/anthropic`) | 7.x (GA seit 25.06.2026) | `ToolLoopAgent`, typisierte Tools, Telemetrie, Message Parts |
 | Sprachmodell | Claude Sonnet 5.5 (`claude-sonnet-5-5`) für den Agenten, Claude Haiku 4.5 (`claude-haiku-4-5-20251001`) für Eingangsprüfung und Titel | aktuell | Starkes Tool-Calling, günstiger Wächter |
 | Datenbank | Supabase Postgres, Region Frankfurt (`eu-central-1`) | aktuell | RLS, RPC, pg\_trgm, pgvector, pg\_cron, Storage |
@@ -245,7 +245,7 @@ haushaltsblick/
 ├── apps/
 │   └── web/                      # Next.js App
 │       ├── app/
-│       │   ├── (dashboard)/      # Start, Explorer, Vergleich, Funktionen, Titel-Detail
+│       │   ├── explorer/, plan-und-ist/, titel/[jahr]/[titelKey]/, suche/
 │       │   ├── datenqualitaet/
 │       │   ├── methodik/
 │       │   ├── beleg/[id]/       # öffentliche Belegansicht
@@ -253,14 +253,14 @@ haushaltsblick/
 │       │       ├── chat/route.ts       # Agent-Endpunkt (Streaming)
 │       │       └── beleg/[id]/verify/route.ts
 │       ├── components/
-│       │   ├── charts/           # ECharts-Wrapper, IBCS-Varianten
+│       │   ├── ibcs/             # eigene SVG-Diagramme und Tabelle (E22)
 │       │   ├── chat/             # Chat-Panel, Tool-Parts, Beleg-Karte
-│       │   └── ui/               # shadcn-Komponenten im roosi Theme
+│       │   └── ui/               # eigene Bedienelemente (Kopf, Fuß, Suche, Umschalter)
 │       └── lib/
 │           ├── agent/            # Agent, Tools, Prompts, Zahlenwächter
 │           ├── receipts/         # Hashing, Signatur, Replay
 │           ├── supabase/         # Clients (Server, Browser), generierte Typen
-│           └── format/           # Zahlen- und Datumsformatierung de-DE
+│           └── ibcs/             # Format, Skala, Notation, Farbe nach E21
 ├── packages/
 │   ├── ingest/                   # XML-Parser, API-Crawler, Loader
 │   │   ├── src/
@@ -295,7 +295,7 @@ Haushaltsblick läuft als privater Showcase von Alexander vollständig auf koste
 | [GitHub](https://resources.github.com/actions/2026-pricing-changes-for-github-actions/) | Free | Actions für öffentliche Repositories kostenlos, private Repos 2.000 Minuten | Öffentliches Repository |
 | [Vercel AI Gateway](https://vercel.com/docs/ai-gateway/pricing) | Free Tier | 5 $ Guthaben je 30 Tage, entfällt dauerhaft nach dem ersten Kauf von Credits | Nie Credits kaufen, nur für Claude-Vergleiche und Live-Demos nutzen |
 | [Mistral La Plateforme](https://help.mistral.ai/en/articles/455206-how-can-i-try-the-api-for-free-with-the-experiment-plan) | Experiment | Kostenlos mit verifizierter Telefonnummer, ohne Kreditkarte. Anfragen dürfen zum Modelltraining verwendet werden | Standardmodell für den öffentlichen Chat, Hinweis im Chat und in der Datenschutzerklärung |
-| dbt Core, Next.js, AI SDK, ECharts | Open Source | keine | keine |
+| dbt Core, Next.js, AI SDK | Open Source | keine | keine |
 
 ### ADR-004 Kostenfreier Betrieb
 
@@ -1099,16 +1099,18 @@ Das Dashboard folgt der IBCS-Notation und einer Farbwelt in Magenta und Anthrazi
 
 ### Seiten
 
-| Route | Inhalt | Kernvisualisierung |
+Stand Plan 5 (Spec `docs/superpowers/specs/2026-10-12-plan-5-web-app-design.md`, Abschnitt 2). `/beleg/[id]` kommt mit Plan 7, der Chat mit Plan 6. Vergleich, Aufgabenseite und Sankey sind Ausbaustufen nach Plan 8.
+
+| Seite | Route | Zielgruppe |
 | --- | --- | --- |
-| `/` | Überblick des gewählten Jahres mit vier KPI-Kacheln (Ausgaben Soll, Ausgaben Ist Vorjahr, Ist-Quote, Veränderung zum Vorjahr) | Treemap der Einzelpläne, Klick führt in den Explorer |
-| `/explorer` | Drilldown Einzelplan, Kapitel, Titelgruppe, Titel mit Brotkrumen | Treemap oder Sunburst plus IBCS-Tabelle mit Soll, Ist, Abweichung |
-| `/vergleich` | Zwei Jahre oder Soll gegen Ist | Wasserfall (Brücke) der Veränderung nach Einzelplan |
-| `/aufgaben` | Funktionale Sicht nach Haupt-, Ober- und Funktion | Balken nach Aufgabenbereich, Sankey Einzelplan zu ökonomischer Hauptgruppe |
-| `/titel/[jahr]/[titelKey]` | Steckbrief eines Titels | Zeitreihe 2012 bis heute mit Soll als Kontur und Ist als Fläche, Fundstellen-Link |
-| `/datenqualitaet` | Ampel, Qualitätswert, Verlauf der Läufe, Ergebnisse je Prüfung, Link zur dbt-Dokumentation mit Lineage | Statustabelle und Verlaufslinie |
-| `/methodik` | Quellen, Lizenzhinweis, Kennzahldefinitionen, Systemprompt im Wortlaut, KI-Hinweis, Grenzen der Daten | Text und Tabellen |
-| `/beleg/[id]` | Öffentlicher Antwortbeleg | Belegansicht mit Prüfknopf |
+| Start | `/` | alle |
+| Explorer | `/explorer` | geschichtet |
+| Plan und Wirklichkeit | `/plan-und-ist` | geschichtet |
+| Titelsteckbrief | `/titel/[jahr]/[titelKey]` | Fachpublikum |
+| Suche | Kopf jeder Seite, Ergebnisseite `/suche` | alle |
+| Datenqualität | `/datenqualitaet` | Fachpublikum |
+| Methodik | `/methodik` | alle |
+| Impressum, Datenschutz | `/impressum`, `/datenschutz` | Pflicht |
 
 ### Chat-Interaktion
 
@@ -1120,7 +1122,8 @@ Der Chat sitzt auf dem Desktop als Seitenleiste mit 420 px Breite rechts, auf de
 | --- | --- |
 | Schrift | Titillium Web für Oberfläche und Diagramme, Zahlen mit `font-variant-numeric: tabular-nums` |
 | Farben | Text Anthrazit `#414042`, Akzent Magenta `#EC008C` sparsam für Auswahl und Hervorhebung, sonst Graustufen |
-| IBCS | Ist als dunkle Fläche, Soll als Kontur, Abweichungen positiv grün und negativ rot mit zusätzlichem Vorzeichen (nicht nur Farbe), einheitliche Skalierung bei Vergleichsdiagrammen |
+| IBCS | Ist als dunkle Fläche, Soll als Kontur, Szenario-Notation nach Spec 5.1 (Vorjahr hellgrau, Entwurf gekennzeichnet). Abweichungen sind grau mit Vorzeichen; grün und rot nur nach der Liste in E21 (Einnahmen, Kreditaufnahme, Zinsen, jeweils Ist gegenüber Soll), Vorjahresvergleiche immer neutral. Einheitliche Skalierung bei Vergleichsdiagrammen. |
+| Diagramme | Eigene SVG-Komponenten (E22) statt ECharts, jede mit Tabellenalternative. Keine KPI-Kacheln, Tachos, 3D oder Kreisdiagramme. |
 | Zahlen | `de-DE`, Beträge ab 1 Mrd. in „Mrd. €“ mit einer Nachkommastelle, darunter in „Mio. €“, Prozent mit einer Nachkommastelle |
 | Dunkelmodus | Vollständig über CSS-Variablen, Diagrammfarben je Modus definiert |
 | Bewegung | Übergänge höchstens 200 ms, `prefers-reduced-motion` respektieren |
@@ -1325,7 +1328,7 @@ Das vollständige Konzept steht in docs/KONZEPT.md. Abschnittsnummern in Aufgabe
 - Kostenfrei bleiben: nichts einbauen, was einen kostenpflichtigen Tarif voraussetzt (ADR-004, Abschnitt 6a).
 
 ## Stack
-Next.js 16 App Router, React 19, TypeScript strict, Tailwind v4, shadcn/ui, ECharts,
+Next.js 16 App Router, React 19, TypeScript strict, Tailwind v4, shadcn/ui, eigene SVG-Diagramme (E22),
 AI SDK 7 mit umschaltbarem Modellanbieter (LLM_PROVIDER: mistral, gateway, anthropic), Supabase (Postgres, RLS, RPC im Schema api), dbt Core, pnpm Workspaces.
 Bei API-Fragen zu AI SDK, Next.js oder Supabase zuerst Context7 nutzen, nicht aus dem Gedächtnis.
 
@@ -1409,7 +1412,7 @@ darunter Angriffe: unbekannte Dimension, SQL in Filterwerten, Limit 10000, fremd
 P4 · Dashboard
 Lies Abschnitt 13. Setze die Design-Tokens um und baue die Seiten in dieser Reihenfolge:
 Überblick, Explorer, Titel-Detail, Vergleich, Aufgaben, Datenqualität, Methodik.
-Alle Daten über RPC in Server Components, Cache-Tag = dataset_version_id. ECharts-Wrapper mit
+Alle Daten über RPC in Server Components, Cache-Tag `datenstand` (Plan 5; /api/revalidate verwirft ihn nach jeder Veröffentlichung). Eigene SVG-Komponenten (E22) mit
 IBCS-Varianten (Ist gefüllt, Soll Kontur). Jede Grafik mit Tabellenalternative.
 Prüfe nach jeder Seite mit Playwright-MCP Screenshots in hell und dunkel, mobil und Desktop.
 ```

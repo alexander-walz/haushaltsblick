@@ -1,0 +1,5 @@
+{
+ "pfad": "/rest/v1/rpc/query_metric?p_metrics=%7B%22soll%22%2C%22ist%22%2C%22abweichung%22%2C%22abweichung_rel%22%7D&p_group_by=%7B%7D&p_filters=%7B%22konto%22%3A%22ausgaben%22%2C%22jahr%22%3A2025%7D&p_version=2",
+ "status": 200,
+ "text": "{\"zeilen\": [{\"ist\": 495536726000.53, \"soll\": 502546135000.00, \"abweichung\": -7009408999.47, \"abweichung_rel\": -0.013948}], \"version\": 2, \"vorlage\": \"query_metric.v1\", \"hinweise\": [], \"einheiten\": {\"ist\": \"EUR\", \"soll\": \"EUR\", \"abweichung\": \"EUR\", \"abweichung_rel\": \"Anteil\"}, \"parameter\": {\"limit\": 50, \"filter\": {\"jahr\": [2025], \"konto\": [\"ausgaben\"]}, \"absteigend\": true, \"kennzahlen\": [\"soll\", \"ist\", \"abweichung\", \"abweichung_rel\"], \"sortierung\": null, \"gruppierung\": []}, \"zeilen_gesamt\": 1, \"semantik_version\": 1}"
+}

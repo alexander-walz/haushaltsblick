@@ -1,0 +1,5 @@
+{
+ "pfad": "/rest/v1/rpc/query_metric?p_metrics=%7B%22soll%22%2C%22ist%22%2C%22abweichung%22%2C%22abweichung_rel%22%7D&p_group_by=%7B%22einzelplan_nr%22%7D&p_filters=%7B%22konto%22%3A%22ausgaben%22%2C%22jahr%22%3A2025%2C%22einzelplan_nr%22%3A%2214%22%7D&p_version=2",
+ "status": 200,
+ "text": "{\"zeilen\": [{\"ist\": 59459108503.34, \"soll\": 62307220000.00, \"abweichung\": -2848111496.66, \"einzelplan_nr\": \"14\", \"abweichung_rel\": -0.045711, \"einzelplan_text\": \"Bundesministerium der Verteidigung\"}], \"version\": 2, \"vorlage\": \"query_metric.v1\", \"hinweise\": [], \"einheiten\": {\"ist\": \"EUR\", \"soll\": \"EUR\", \"abweichung\": \"EUR\", \"abweichung_rel\": \"Anteil\"}, \"parameter\": {\"limit\": 50, \"filter\": {\"jahr\": [2025], \"konto\": [\"ausgaben\"], \"einzelplan_nr\": [\"14\"]}, \"absteigend\": true, \"kennzahlen\": [\"soll\", \"ist\", \"abweichung\", \"abweichung_rel\"], \"sortierung\": null, \"gruppierung\": [\"einzelplan_nr\"]}, \"zeilen_gesamt\": 1, \"semantik_version\": 1}"
+}

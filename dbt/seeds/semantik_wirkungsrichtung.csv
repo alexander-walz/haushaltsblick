@@ -1,0 +1,6 @@
+regel_id,konto,typ,schluessel,richtung,rang,begruendung
+einnahmen,einnahmen,konto,,anstieg_positiv,2,"Mehreinnahmen gegenüber dem Plan verbessern den Haushaltsvollzug. Das ist haushaltsrechtlich eindeutig."
+globale_mehr_minder,einnahmen,obergruppe,37,neutral,1,"Globale Mehr- und Mindereinnahmen sind Planungsposten ohne eigenen Vollzug. Eine Abweichung sagt nichts über gut oder schlecht."
+kreditaufnahme,einnahmen,obergruppe,32,anstieg_negativ,1,"Mehr Schulden als geplant verschlechtern den Haushaltsvollzug."
+ruecklagenentnahme,einnahmen,obergruppe,35,neutral,1,"Eine geringere Entnahme aus Rücklagen schont Reserven, fehlt aber als Deckung. Gut oder schlecht ist hier nicht eindeutig."
+zinsen,ausgaben,funktion,830,anstieg_negativ,1,"Zinsen sind Kosten der Verschuldung ohne eigenen Leistungsgehalt."
