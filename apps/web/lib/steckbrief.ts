@@ -27,3 +27,13 @@ export function luecke(d: TitelDetail, erstesJahr: number): string | null {
   if (erstes === undefined || erstes <= erstesJahr) return null;
   return `Für Jahre vor ${erstes} gibt es keine eindeutige Zuordnung, oder der Titel bestand noch nicht.`;
 }
+
+/** Verlinkt wird nur eine https-Adresse auf www.bundeshaushalt.de, alles andere bleibt ohne Link. */
+export function sichereFundstelle(url: string): string | null {
+  try {
+    const u = new URL(url);
+    return u.protocol === 'https:' && u.hostname === 'www.bundeshaushalt.de' ? u.href : null;
+  } catch {
+    return null;
+  }
+}

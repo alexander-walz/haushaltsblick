@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { TitelDetailSchema } from './daten/schemas';
-import { flexibilisiertText, luecke, zeitpunkte } from './steckbrief';
+import { flexibilisiertText, luecke, sichereFundstelle, zeitpunkte } from './steckbrief';
 
 const detail = TitelDetailSchema.parse(JSON.parse(readFileSync(new URL('./daten/__fixtures__/titel_detail.json', import.meta.url), 'utf8')));
 
@@ -29,5 +29,19 @@ describe('Steckbrief', () => {
     expect(flexibilisiertText(false)).toBe('nein');
     expect(luecke(detail, 2012)).toMatch(/^Für Jahre vor \d{4}/);
     expect(luecke({ ...detail, zeitreihe: detail.zeitreihe.map((z, i) => ({ ...z, jahr: 2012 + i })) }, 2012)).toBeNull();
+  });
+
+  it('zeigt kein Ist, wenn es nicht verfügbar ist, auch bei gesetztem Wert', () => {
+    const kopie = structuredClone(detail);
+    kopie.zeitreihe[0] = { ...kopie.zeitreihe[0]!, ist_verfuegbar: false, ist_eur: 123 };
+    expect(zeitpunkte(kopie, false)[0]!.ist).toBeNull();
+  });
+
+  it('verlinkt Fundstellen nur auf https://www.bundeshaushalt.de', () => {
+    expect(sichereFundstelle('https://www.bundeshaushalt.de/static/daten/2026/soll/epl04.pdf')).toBe('https://www.bundeshaushalt.de/static/daten/2026/soll/epl04.pdf');
+    expect(sichereFundstelle('javascript:alert(1)')).toBeNull();
+    expect(sichereFundstelle('https://example.org/x.pdf')).toBeNull();
+    expect(sichereFundstelle('http://www.bundeshaushalt.de/x.pdf')).toBeNull();
+    expect(sichereFundstelle('kein url')).toBeNull();
   });
 });

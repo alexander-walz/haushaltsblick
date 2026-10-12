@@ -9,10 +9,20 @@ import { bezeichnung } from '@/lib/explorer';
 import { wirkungAus } from '@/lib/ibcs/farbe';
 import { einheitFuer } from '@/lib/ibcs/format';
 import { einzeln, type SuchParameter } from '@/lib/seite';
-import { flexibilisiertText, luecke, zeitpunkte } from '@/lib/steckbrief';
+import { flexibilisiertText, luecke, sichereFundstelle, zeitpunkte } from '@/lib/steckbrief';
 import { heute } from '@/lib/zeit';
 
-export const metadata: Metadata = { title: 'Titel' };
+export async function generateMetadata({ params }: { params: Promise<{ jahr: string; titelKey: string }> }): Promise<Metadata> {
+  try {
+    const { jahr, titelKey } = await params;
+    if (!Number.isInteger(Number(jahr)) || !/^\d{9}$/.test(titelKey)) return { title: 'Titel' };
+    const stand = await ladeDatenstand();
+    const d = await titelDetail(titelKey, Number(jahr), stand.version);
+    return { title: d.titel.titel_text ?? 'Titel' };
+  } catch {
+    return { title: 'Titel' };
+  }
+}
 
 export default async function TitelSeite({ params, searchParams }: {
   params: Promise<{ jahr: string; titelKey: string }>; searchParams: Promise<SuchParameter>;
@@ -38,6 +48,7 @@ export default async function TitelSeite({ params, searchParams }: {
   const erstes = d.zeitreihe[0]?.jahr ?? jahr;
   const letztes = d.zeitreihe.at(-1)?.jahr ?? jahr;
   const hinweis = luecke(d, jahre.alle[0] ?? 2012);
+  const fundstelleUrl = d.fundstelle ? sichereFundstelle(d.fundstelle.url) : null;
   const planLink = `/titel/${jahr}/${titelKey}${mitPlan ? '' : '?haushaltsplan=ja'}`;
 
   return (
@@ -67,7 +78,9 @@ export default async function TitelSeite({ params, searchParams }: {
       </dl>
       <h2 className="mt-6 text-lg font-semibold">Fundstelle</h2>
       {d.fundstelle
-        ? <p className="mt-1 text-sm"><a href={d.fundstelle.url} rel="noopener">{d.fundstelle.dokument}, Seite {d.fundstelle.seite}</a></p>
+        ? <p className="mt-1 text-sm">{fundstelleUrl
+            ? <a href={fundstelleUrl} rel="noopener noreferrer">{d.fundstelle.dokument}, Seite {d.fundstelle.seite}</a>
+            : <>{d.fundstelle.dokument}, Seite {d.fundstelle.seite}</>}</p>
         : <p className="mt-1 text-sm">{t.haushaltsstand === 'Regierungsentwurf' ? 'Für den Regierungsentwurf gibt es noch keinen Haushaltsplan mit Seitenangabe.' : 'Die Quelldaten enthalten für diesen Titel keine Seitenangabe.'}</p>}
     </>
   );

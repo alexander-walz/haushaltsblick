@@ -21,6 +21,8 @@ const OBEN = 30;
 const HOEHE = 120;
 const UNTEN = 28;
 const ABW = 36;
+const ABWTEXT = 12;
+const RAND = 24;
 const runde = (n: number) => Math.round(n * 100) / 100;
 
 /** Zeitreihe als Säulen (Zeit horizontal): Soll als Kontur, Ist gefüllt, Entwurf gekennzeichnet, darunter ΔPL je Jahr. */
@@ -35,7 +37,7 @@ export function ZeitreiheSaeulen({ id, titel, punkte, wirkung = 'neutral', hinwe
   const zeigeAbw =abw.some((w) => w !== null);
   const ma = masstab(abw);
   const breite = Math.max(punkte.length, 1) * SPALTE;
-  const hoehe = OBEN + HOEHE + UNTEN + (zeigeAbw ? ABW : 0);
+  const hoehe = OBEN + HOEHE + UNTEN + (zeigeAbw ? ABW + ABWTEXT : 0);
   const y = (w: number) => OBEN + HOEHE - position(w, m, HOEHE);
   const y0 = y(0);
   const basisAbw = OBEN + HOEHE + UNTEN;
@@ -44,7 +46,7 @@ export function ZeitreiheSaeulen({ id, titel, punkte, wirkung = 'neutral', hinwe
   return (
     <figure className="my-4">
       <figcaption><Titelblock id={`${id}-titel`} {...titel} /></figcaption>
-      <svg viewBox={`0 0 ${breite} ${hoehe}`} className="h-auto w-full" role="img" aria-labelledby={`${id}-titel`}>
+      <svg viewBox={`${zeigeAbw ? -RAND : 0} 0 ${breite + (zeigeAbw ? RAND : 0)} ${hoehe}`} className="h-auto w-full" role="img" aria-labelledby={`${id}-titel`}>
         {punkte.map((p, i) => {
           const x = i * SPALTE + 8;
           const w = SPALTE - 16;
@@ -82,7 +84,7 @@ export function ZeitreiheSaeulen({ id, titel, punkte, wirkung = 'neutral', hinwe
                 <>
                   <rect x={x + 4} y={runde(Math.min(ya(p.abweichung), ya0))} width={w - 8} height={runde(Math.abs(ya(p.abweichung) - ya0))}
                     className={FARBKLASSE[abweichungsfarbe(p.abweichung, wirkung, 'plan')]} />
-                  <text x={x + w / 2} y={basisAbw + 6} textAnchor="middle" className="ibcs-text-gedaempft">{betrag(p.abweichung, e, { vorzeichen: true })}</text>
+                  <text x={x + w / 2} y={basisAbw + ABW + 9} textAnchor="middle" className="ibcs-text-gedaempft">{betrag(p.abweichung, e, { vorzeichen: true })}</text>
                 </>
               )}
             </g>
@@ -90,6 +92,7 @@ export function ZeitreiheSaeulen({ id, titel, punkte, wirkung = 'neutral', hinwe
         })}
         <line x1={0} x2={breite} y1={runde(y0)} y2={runde(y0)} className="ibcs-achse" />
         {zeigeAbw && <line x1={0} x2={breite} y1={runde(ya0)} y2={runde(ya0)} className="ibcs-achse" />}
+        {zeigeAbw && <text x={-RAND + 2} y={runde(ya0) + 3} className="ibcs-text-gedaempft">ΔPL</text>}
       </svg>
       <table className="sr-only">
         <caption>{titel.wer}: Werte je Jahr in {e.kurz}</caption>

@@ -78,4 +78,22 @@ describe('ZeitreiheSaeulen', () => {
     const mitPlan = punkte.map((p) => ({ ...p, haushaltsplan: 280e6 }));
     expect(renderToStaticMarkup(<ZeitreiheSaeulen id="h" titel={TITEL} punkte={mitPlan} />)).toContain('ibcs-haushaltsplan');
   });
+
+  it('setzt die ΔPL-Werte in eine eigene Zeile unterhalb des Streifens', () => {
+    const html = renderToStaticMarkup(
+      <ZeitreiheSaeulen id="a" titel={TITEL} punkte={[
+        { jahr: 2024, soll: 300e6, ist: 290e6, sollSzenario: 'soll', abweichung: 4e6 },
+        { jahr: 2025, soll: 310e6, ist: 300e6, sollSzenario: 'soll', abweichung: -10e6 },
+      ]} />,
+    );
+    const unterkante = Math.max(...[...html.matchAll(/<rect[^>]*class="ibcs-(?:pos|neg|neutral)"[^>]*>/g)].map((m) => {
+      const y = Number(/\sy="([\d.]+)"/.exec(m[0])![1]);
+      const h = Number(/height="([\d.]+)"/.exec(m[0])![1]);
+      return y + h;
+    }));
+    const yVon = (text: string) => Number(new RegExp(`<text[^>]*\\sy="([\\d.-]+)"[^>]*>${text}</text>`).exec(html)?.[1]);
+    expect(yVon('[+]4,0')).toBeGreaterThan(unterkante);
+    expect(yVon('−10,0')).toBeGreaterThan(unterkante);
+    expect(html).toContain('>ΔPL</text>');
+  });
 });
