@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { TitelDetailSchema } from './daten/schemas';
-import { flexibilisiertText, luecke, sichereFundstelle, zeitpunkte } from './steckbrief';
+import { flexibilisiertText, luecke, sichereFundstelle, sollQuelleText, zeitpunkte } from './steckbrief';
 
 const detail = TitelDetailSchema.parse(JSON.parse(readFileSync(new URL('./daten/__fixtures__/titel_detail.json', import.meta.url), 'utf8')));
 
@@ -43,5 +43,13 @@ describe('Steckbrief', () => {
     expect(sichereFundstelle('https://example.org/x.pdf')).toBeNull();
     expect(sichereFundstelle('http://www.bundeshaushalt.de/x.pdf')).toBeNull();
     expect(sichereFundstelle('kein url')).toBeNull();
+  });
+
+  it('benennt die Quelle des Solls und zeigt fehlende Angaben als n. v.', () => {
+    expect(sollQuelleText('api')).toBe('bundeshaushalt.de, maßgeblicher Stand');
+    expect(sollQuelleText('api', true)).toBe('bundeshaushalt.de');
+    expect(sollQuelleText('xml')).toBe('Haushaltsplan (XML)');
+    expect(sollQuelleText(null)).toBe('n. v.');
+    expect(sollQuelleText('unbekannt')).toBe('n. v.');
   });
 });

@@ -7,9 +7,9 @@ import { ApiFehler } from '@/lib/daten/rpc';
 import type { TitelDetail } from '@/lib/daten/schemas';
 import { bezeichnung } from '@/lib/explorer';
 import { wirkungAus } from '@/lib/ibcs/farbe';
-import { einheitFuer } from '@/lib/ibcs/format';
+import { einheitFuer, NICHT_VERFUEGBAR } from '@/lib/ibcs/format';
 import { einzeln, type SuchParameter } from '@/lib/seite';
-import { flexibilisiertText, luecke, sichereFundstelle, zeitpunkte } from '@/lib/steckbrief';
+import { flexibilisiertText, luecke, sichereFundstelle, sollQuelleText, zeitpunkte } from '@/lib/steckbrief';
 import { heute } from '@/lib/zeit';
 
 export async function generateMetadata({ params }: { params: Promise<{ jahr: string; titelKey: string }> }): Promise<Metadata> {
@@ -41,7 +41,9 @@ export default async function TitelSeite({ params, searchParams }: {
     throw e;
   }
   const t = d.titel;
-  const wirk = await frage({ kennzahlen: ['abweichung'], filter: { konto: t.konto, jahr: t.jahr, titel_key: t.titel_key } }, stand.version).catch(() => null);
+  // Ohne Wirkungsrichtung bleibt die Zeitreihe grau; der Fehler wird protokolliert, nicht verschluckt.
+  const wirk = await frage({ kennzahlen: ['abweichung'], filter: { konto: t.konto, jahr: t.jahr, titel_key: t.titel_key } }, stand.version)
+    .catch((fehler: unknown) => { console.error('Wirkungsrichtung für Titel nicht abrufbar', t.titel_key, t.jahr, fehler); return null; });
   const wirkung = wirkungAus(wirk?.zeilen[0]?.wirkungsrichtung);
   const punkte = zeitpunkte(d, mitPlan);
   const e = einheitFuer(punkte.flatMap((p) => [p.soll, p.ist, p.haushaltsplan ?? null]));
@@ -73,8 +75,8 @@ export default async function TitelSeite({ params, searchParams }: {
         <dt>Funktion</dt><dd>{t.fkt} {t.funktion_text}</dd>
         <dt>Gruppierung</dt><dd>{t.gruppierung_nr} {t.gruppierung_text}</dd>
         <dt>Flexibilisiert</dt><dd>{flexibilisiertText(t.flexibilisiert)}</dd>
-        <dt>Haushaltsstand</dt><dd>{t.haushaltsstand}</dd>
-        <dt>Quelle des Solls</dt><dd>{t.soll_quelle === 'api' ? 'bundeshaushalt.de, maßgeblicher Stand' : 'Haushaltsplan (XML)'}</dd>
+        <dt>Haushaltsstand</dt><dd>{t.haushaltsstand ?? NICHT_VERFUEGBAR}</dd>
+        <dt>Quelle des Solls</dt><dd>{sollQuelleText(t.soll_quelle)}</dd>
       </dl>
       <h2 className="mt-6 text-lg font-semibold">Fundstelle</h2>
       {d.fundstelle

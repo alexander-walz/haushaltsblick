@@ -1,5 +1,6 @@
 import type { Zeitpunkt } from '@/components/ibcs/ZeitreiheSaeulen';
 import type { TitelDetail } from './daten/schemas';
+import { NICHT_VERFUEGBAR } from './ibcs/format';
 import { sollSzenario } from './ibcs/notation';
 
 export function zeitpunkte(d: TitelDetail, mitHaushaltsplan: boolean): Zeitpunkt[] {
@@ -20,6 +21,13 @@ export function zeitpunkte(d: TitelDetail, mitHaushaltsplan: boolean): Zeitpunkt
 export function flexibilisiertText(w: boolean | null): string {
   if (w === null) return 'nicht anwendbar';
   return w ? 'ja' : 'nein';
+}
+
+/** Quelle des Solls; `kurz` für Tabellen. Fehlt die Angabe, steht „n. v.“ statt einer Vermutung. */
+export function sollQuelleText(quelle: string | null, kurz = false): string {
+  if (quelle === 'api') return kurz ? 'bundeshaushalt.de' : 'bundeshaushalt.de, maßgeblicher Stand';
+  if (quelle === 'xml') return 'Haushaltsplan (XML)';
+  return NICHT_VERFUEGBAR;
 }
 
 export function luecke(d: TitelDetail, erstesJahr: number): string | null {

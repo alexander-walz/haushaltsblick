@@ -12,8 +12,8 @@ export function kernaussageStart(jahr: number, soll: number | null, proKopf: num
   return { titel, untertitel };
 }
 
-export function kernaussagePlanIst(jahr: number, konto: 'ausgaben' | 'einnahmen', abweichung: number | null): string {
-  if (abweichung === null) return `Für ${jahr} liegt noch kein Ist vor.`;
+export function kernaussagePlanIst(jahr: number, konto: 'ausgaben' | 'einnahmen', abweichung: number | null, istVorhanden = false): string {
+  if (abweichung === null) return istVorhanden ? `Für ${jahr} lässt sich keine Abweichung zwischen Plan und Ist angeben.` : `Für ${jahr} liegt noch kein Ist vor.`;
   if (abweichung === 0) return `${jahr} entsprach das Ist genau dem Soll.`;
   const richtung = abweichung < 0 ? 'weniger' : 'mehr';
   const verb = konto === 'ausgaben' ? 'ausgegeben' : 'eingenommen';

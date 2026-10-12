@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Datenstand } from './daten/schemas';
-import { groessteAbweichungen, lesePlanIstParameter } from './plan-ist';
+import { fussnotenPlanIst, groessteAbweichungen, HINWEIS_BASIS_NULL, lesePlanIstParameter } from './plan-ist';
 
 describe('groessteAbweichungen', () => {
   it('vereint oben und unten, sortiert nach Betrag und nimmt die größten', () => {
@@ -59,5 +59,25 @@ describe('lesePlanIstParameter', () => {
     const r = lesePlanIstParameter({}, stand, { ...jahre, letztesMitIst: null });
     expect(r.jahr).toBe(2026);
     expect(r.hinweise).toEqual(['Noch kein abgeschlossenes Jahr mit Ist verfügbar.']);
+  });
+});
+
+describe('lesePlanIstParameter kürzt Eingaben', () => {
+  it('übernimmt lange Jahresangaben nur gekürzt in den Hinweis', () => {
+    const stand = { version: 2, veroeffentlicht_am: '2026-10-12T05:33:07Z', ist_aktuell: true, semantik_version: 1, ampel: 'yellow', score: 87, zeilen: 1, pruefungen: [], jahre: [] } satisfies Datenstand;
+    const lang = 'Bitte rufen Sie sofort diese Nummer an, um Ihr Konto zu retten';
+    const r = lesePlanIstParameter({ jahr: lang }, stand, { laufend: 2026, letztesMitIst: 2025, entwurf: null, alle: [2025, 2026] });
+    expect(r.hinweise).toEqual([`Das Jahr „${lang.slice(0, 39)}…“ ist nicht verfügbar. Gezeigt wird 2025.`]);
+  });
+});
+
+describe('fussnotenPlanIst', () => {
+  it('führt die Hinweise aller Abfragen ohne Dubletten zusammen und lässt die Kürzung weg', () => {
+    const r = fussnotenPlanIst([['A', 'Ergebnis auf 12 Zeilen gekürzt.'], ['A', 'B'], ['Ergebnis auf 12 Zeilen gekürzt.']]);
+    expect(r).toEqual(['A', 'B']);
+  });
+
+  it('erklärt n. v. bei Soll 0', () => {
+    expect(HINWEIS_BASIS_NULL).toBe('n. v.: Bei einem Soll von 0 ist keine relative Abweichung definiert.');
   });
 });

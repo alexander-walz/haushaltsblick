@@ -6,6 +6,14 @@ export const metadata: Metadata = { title: 'Methodik' };
 
 const SZENARIEN: readonly Szenario[] = ['ist', 'soll', 'entwurf', 'haushaltsplan', 'ist_vorjahr', 'soll_vorjahr'];
 const RICHTUNG: Record<string, string> = { anstieg_positiv: 'Anstieg grün', anstieg_negativ: 'Anstieg rot' };
+const KONTO: Record<string, string> = { ausgaben: 'Ausgaben', einnahmen: 'Einnahmen' };
+const TYP: Record<string, string> = { funktion: 'Funktion', obergruppe: 'Obergruppe' };
+
+/** Bereich einer Wirkungsregel; die Regel für ein ganzes Konto gilt nur für das, was keine spezifischere Regel erfasst. */
+function bereich(w: { konto: string; typ: string; schluessel: string | null }): string {
+  if (!w.schluessel) return `übrige ${KONTO[w.konto] ?? w.konto}`;
+  return `${KONTO[w.konto] ?? w.konto}, ${TYP[w.typ] ?? w.typ} ${w.schluessel}`;
+}
 
 export default async function Methodik() {
   const stand = await ladeDatenstand();
@@ -18,8 +26,29 @@ export default async function Methodik() {
         <p className="mt-1">
           Alle Zahlen stammen vom Bundesministerium der Finanzen (bundeshaushalt.de). Das Soll ist der maßgebliche Stand einschließlich Nachtragshaushalten,
           das Ist der tatsächlich gebuchte Betrag abgeschlossener Jahre. Für die Struktur nutzen wir zusätzlich die XML-Dateien des Haushaltsplans.
-          Die Daten werden wöchentlich geladen, geprüft und erst dann veröffentlicht. Rechtlich verbindlich ist ausschließlich der veröffentlichte Haushaltsplan.
+          Die Daten werden wöchentlich geladen, geprüft und erst dann veröffentlicht.
         </p>
+      </section>
+      <section id="quellen">
+        <h2 className="text-lg font-semibold">Quellen und Lizenz</h2>
+        <p className="mt-1">
+          Quelle: Bundesministerium der Finanzen, <a href="https://www.bundeshaushalt.de" rel="noopener noreferrer">bundeshaushalt.de</a>.
+          Für die Nutzung der Daten gelten die Nutzungsbedingungen der Quelle.
+          Rechtlich verbindlich ist ausschließlich der veröffentlichte Haushaltsplan.
+        </p>
+      </section>
+      <section id="datenstand">
+        <h2 className="text-lg font-semibold">Datenstand und Ampel</h2>
+        <p className="mt-1">
+          Jede Seite nennt unten den Datenstand: eine Versionsnummer und das Datum der Veröffentlichung. Alle Zahlen einer Seite stammen aus derselben Version.
+          Vor jeder Veröffentlichung laufen automatische Prüfungen, etwa ob Summen aufgehen und Bezeichnungen vollständig sind.
+        </p>
+        <ul className="mt-1 list-disc pl-5">
+          <li>Grün: Alle Prüfungen sind bestanden.</li>
+          <li>Gelb: Die Zahlen stimmen, einzelne Prüfungen melden Hinweise, etwa fehlende Bezeichnungen.</li>
+          <li>Rot: Eine Prüfung ist gescheitert. Ein solcher Stand wird nie veröffentlicht, es bleibt beim letzten geprüften Stand.</li>
+        </ul>
+        <p className="mt-1"><a href="/datenqualitaet">Prüfungen und Hinweise des aktuellen Stands</a></p>
       </section>
       <section>
         <h2 className="text-lg font-semibold">Wie wir darstellen</h2>
@@ -42,13 +71,14 @@ export default async function Methodik() {
         <p className="mt-1">
           Abweichungen sind grundsätzlich grau. Ob mehr oder weniger Ausgaben gut sind, ist eine politische Frage, die wir nicht beantworten.
           Farbe gibt es nur, wo die Wirkung haushaltsrechtlich eindeutig ist, immer zusammen mit einem Vorzeichen. Vergleiche mit dem Vorjahr sind immer grau.
+          Gilt für einen Titel mehr als eine Regel, gewinnt die spezifischere. Enthält eine Gruppe Titel mit verschiedenen Regeln, bleibt sie grau.
         </p>
         <table className="mt-2 w-full text-sm">
           <thead><tr className="border-b-2 border-[var(--hb-ink)] text-left"><th scope="col" className="py-1 pr-2">Bereich</th><th scope="col" className="pr-2">Farbe</th><th scope="col">Begründung</th></tr></thead>
           <tbody>
             {k.wirkungsrichtung.map((w) => (
               <tr key={w.regel_id} className="border-b border-[var(--hb-linie)]">
-                <th scope="row" className="py-1 pr-2 text-left font-normal">{w.konto === 'ausgaben' ? 'Ausgaben' : 'Einnahmen'}{w.schluessel ? `, ${w.typ === 'funktion' ? 'Funktion' : 'Obergruppe'} ${w.schluessel}` : ''}</th>
+                <th scope="row" className="py-1 pr-2 text-left font-normal">{bereich(w)}</th>
                 <td className="pr-2">{RICHTUNG[w.richtung]}</td>
                 <td>{w.begruendung}</td>
               </tr>

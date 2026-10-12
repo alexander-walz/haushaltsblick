@@ -6,12 +6,12 @@ import { JahrAuswahl } from '@/components/ui/JahrAuswahl';
 import { Umschalter } from '@/components/ui/Umschalter';
 import { kernaussagePlanIst } from '@/lib/aussagen';
 import { frage, ladeDatenstand } from '@/lib/daten/abfragen';
-import { standardjahre } from '@/lib/daten/jahre';
+import { istVerfuegbar, standardjahre } from '@/lib/daten/jahre';
 import { bezeichnung, TEXTSPALTE, trefferZiel } from '@/lib/explorer';
 import { wirkungAus } from '@/lib/ibcs/farbe';
 import { betragMitEinheit, einheitFuer } from '@/lib/ibcs/format';
 import { wann } from '@/lib/ibcs/titel';
-import { ANZAHL_ABWEICHUNGEN, EBENE_DIM, groessteAbweichungen, lesePlanIstParameter, type PlanIstEbene } from '@/lib/plan-ist';
+import { ANZAHL_ABWEICHUNGEN, EBENE_DIM, fussnotenPlanIst, groessteAbweichungen, HINWEIS_BASIS_NULL, lesePlanIstParameter, type PlanIstEbene } from '@/lib/plan-ist';
 import type { SuchParameter } from '@/lib/seite';
 import { text, zahl } from '@/lib/werte';
 import { heute } from '@/lib/zeit';
@@ -60,11 +60,12 @@ export default async function PlanUndIst({ searchParams }: { searchParams: Promi
     return `/plan-und-ist?${q.toString()}`;
   };
   const mitIst = jahre.alle.filter((j) => stand.jahre.some((x) => x.jahr === j && x.konto === p.konto && x.ist_verfuegbar));
-  const wer = `Bund, ${kontoText} nach ${ebeneText}`;
+  const wer = `Bund, ${kontoText} nach ${ebeneText}, die ${ANZAHL_ABWEICHUNGEN} größten Abweichungen`;
+  const basisNull = zeilen.some((z) => z.abs !== null && z.rel === null);
 
   return (
     <>
-      <h1 className="text-2xl font-bold">{kernaussagePlanIst(p.jahr, p.konto, zahl(g, 'abweichung'))}</h1>
+      <h1 className="text-2xl font-bold">{kernaussagePlanIst(p.jahr, p.konto, zahl(g, 'abweichung'), istVerfuegbar(stand, p.jahr, p.konto))}</h1>
       <p className="mt-1 text-[var(--hb-gedaempft)]">
         Soll {betragMitEinheit(zahl(g, 'soll'))}, Ist {betragMitEinheit(zahl(g, 'ist'))}. Wo lagen Plan und Wirklichkeit am weitesten auseinander?
       </p>
@@ -85,14 +86,12 @@ export default async function PlanUndIst({ searchParams }: { searchParams: Promi
         <Abweichungsbalken id="abs" vergleich="plan" einheit={e}
           titel={{ wer, was: e.kurz, wann: wann(p.jahr, ['ΔPL (Ist minus Soll)']) }}
           zeilen={zeilen.map((z) => ({ schluessel: z.schluessel, bezeichnung: z.bezeichnung, href: z.href, wert: z.abs, wirkung: z.wirkung }))}
-          hinweise={oben.hinweise.filter((h) => !h.startsWith('Ergebnis auf'))} />
+          hinweise={fussnotenPlanIst([gesamt.hinweise, oben.hinweise, unten.hinweise])} />
         <Nadeln id="rel" vergleich="plan"
           titel={{ wer, was: '%', wann: wann(p.jahr, ['ΔPL %']) }}
-          zeilen={zeilen.map((z) => ({ schluessel: z.schluessel, bezeichnung: z.bezeichnung, href: z.href, wert: z.rel, wirkung: z.wirkung }))} />
+          zeilen={zeilen.map((z) => ({ schluessel: z.schluessel, bezeichnung: z.bezeichnung, href: z.href, wert: z.rel, wirkung: z.wirkung }))}
+          hinweise={basisNull ? [HINWEIS_BASIS_NULL] : []} />
       </div>
-      <p className="mt-2 text-xs text-[var(--hb-gedaempft)]">
-        Grau heißt: ohne Wertung. Grün und Rot gibt es nur nach festen Regeln für Einnahmen, Kreditaufnahme und Zinsen. <a href="/methodik#farben">Regeln ansehen</a>
-      </p>
     </>
   );
 }

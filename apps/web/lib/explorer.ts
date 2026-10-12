@@ -1,5 +1,5 @@
 import type { Standardjahre } from './daten/jahre';
-import { einzeln, type SuchParameter } from './seite';
+import { einzeln, kuerze, type SuchParameter } from './seite';
 
 export type Sicht = 'ressort' | 'aufgabe' | 'art';
 export type Konto = 'ausgaben' | 'einnahmen';
@@ -46,7 +46,7 @@ export function leseParameter(sp: SuchParameter, jahre: Standardjahre): { param:
   if (jahrText !== undefined) {
     const j = Number(jahrText);
     if (Number.isInteger(j) && jahre.alle.includes(j)) jahr = j;
-    else hinweise.push(`Das Jahr „${jahrText}“ ist nicht verfügbar. Gezeigt wird ${jahre.laufend}.`);
+    else hinweise.push(`Das Jahr „${kuerze(jahrText)}“ ist nicht verfügbar. Gezeigt wird ${jahre.laufend}.`);
   }
   const konto: Konto = einzeln(sp, 'konto') === 'einnahmen' ? 'einnahmen' : 'ausgaben';
   const sichtText = einzeln(sp, 'sicht');
@@ -62,11 +62,11 @@ export function leseParameter(sp: SuchParameter, jahre: Standardjahre): { param:
     const wert = einzeln(sp, URL_PARAM[dim]!);
     if (wert === undefined) break;
     if (!MUSTER[dim]!.test(wert)) {
-      hinweise.push(`Die Auswahl „${wert}“ ist ungültig und wurde zurückgesetzt.`);
+      hinweise.push(`Die Auswahl „${kuerze(wert)}“ ist ungültig und wurde zurückgesetzt.`);
       break;
     }
     if (vorgaenger !== null && !wert.startsWith(vorgaenger)) {
-      hinweise.push(`Die Auswahl „${wert}“ passt nicht zur übergeordneten Ebene und wurde zurückgesetzt.`);
+      hinweise.push(`Die Auswahl „${kuerze(wert)}“ passt nicht zur übergeordneten Ebene und wurde zurückgesetzt.`);
       break;
     }
     pfad[dim] = wert;

@@ -25,5 +25,10 @@ describe('Kernaussagen (faktisch, ohne Wertung)', () => {
     expect(kernaussagePlanIst(2025, 'einnahmen', 3_200_000_000)).toBe('2025 wurden 3,2 Mrd. € mehr eingenommen als geplant.');
     expect(kernaussagePlanIst(2025, 'ausgaben', 0)).toBe('2025 entsprach das Ist genau dem Soll.');
     expect(kernaussagePlanIst(2026, 'ausgaben', null)).toBe('Für 2026 liegt noch kein Ist vor.');
+    expect(kernaussagePlanIst(2026, 'ausgaben', null, false)).toBe('Für 2026 liegt noch kein Ist vor.');
+  });
+
+  it('Plan und Wirklichkeit mit Ist, aber ohne berechenbare Abweichung', () => {
+    expect(kernaussagePlanIst(2024, 'ausgaben', null, true)).toBe('Für 2024 lässt sich keine Abweichung zwischen Plan und Ist angeben.');
   });
 });

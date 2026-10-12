@@ -11,7 +11,7 @@ export default function Impressum() {
       {i ? (
         <>
           <p className="mt-2">Angaben gemäß § 5 Digitale-Dienste-Gesetz</p>
-          <address className="mt-2 not-italic">{i.name}<br />{i.anschrift.map((z) => <span key={z}>{z}<br /></span>)}</address>
+          <address className="mt-2 not-italic">{i.name}<br />{i.anschrift.map((z, n) => <span key={n}>{z}<br /></span>)}</address>
           <p className="mt-2">Kontakt: {i.kontakt}</p>
           <p className="mt-4 text-sm">Haushaltsblick ist ein privates, nicht kommerzielles Projekt.</p>
         </>

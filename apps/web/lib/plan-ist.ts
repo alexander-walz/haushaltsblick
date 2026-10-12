@@ -1,6 +1,6 @@
 import { istVerfuegbar, type Standardjahre } from './daten/jahre';
 import type { Datenstand, Zeile } from './daten/schemas';
-import { einzeln, type SuchParameter } from './seite';
+import { einzeln, kuerze, type SuchParameter } from './seite';
 
 export type PlanIstEbene = 'einzelplan' | 'kapitel' | 'titel';
 export const ANZAHL_ABWEICHUNGEN = 12;
@@ -20,6 +20,16 @@ export function groessteAbweichungen(zeilen: readonly Zeile[], dim: string, kenn
   return eindeutig.sort((a, b) => Math.abs(b[kennzahl] as number) - Math.abs(a[kennzahl] as number)).slice(0, n);
 }
 
+export const HINWEIS_BASIS_NULL = 'n. v.: Bei einem Soll von 0 ist keine relative Abweichung definiert.';
+
+/**
+ * Fußnoten der Seite aus den Hinweisen aller Abfragen, ohne Dubletten. Der Kürzungshinweis der API entfällt,
+ * weil der Titel die Auswahl („die 12 größten Abweichungen“) selbst nennt.
+ */
+export function fussnotenPlanIst(listen: readonly (readonly string[])[]): string[] {
+  return [...new Set(listen.flat())].filter((h) => !h.startsWith('Ergebnis auf'));
+}
+
 export function lesePlanIstParameter(sp: SuchParameter, stand: Datenstand, jahre: Standardjahre): {
   jahr: number; konto: 'ausgaben' | 'einnahmen'; ebene: PlanIstEbene; sortierung: 'abweichung' | 'abweichung_rel'; hinweise: string[];
 } {
@@ -31,7 +41,7 @@ export function lesePlanIstParameter(sp: SuchParameter, stand: Datenstand, jahre
   const jahrText = einzeln(sp, 'jahr');
   if (jahrText !== undefined) {
     const j = Number(jahrText);
-    if (!Number.isInteger(j) || !jahre.alle.includes(j)) hinweise.push(`Das Jahr „${jahrText}“ ist nicht verfügbar. Gezeigt wird ${standard}.`);
+    if (!Number.isInteger(j) || !jahre.alle.includes(j)) hinweise.push(`Das Jahr „${kuerze(jahrText)}“ ist nicht verfügbar. Gezeigt wird ${standard}.`);
     else if (istVerfuegbar(stand, j, konto)) jahr = j;
     else hinweise.push(`Für ${jahrText} liegt noch kein Ist vor. Gezeigt wird ${standard}, das letzte abgeschlossene Jahr.`);
   }

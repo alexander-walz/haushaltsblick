@@ -21,6 +21,12 @@ describe('leseParameter', () => {
     expect(hinweise).toEqual(['Das Jahr „abc“ ist nicht verfügbar. Gezeigt wird 2026.']);
   });
 
+  it('übernimmt Eingaben nur gekürzt in Hinweise', () => {
+    const lang = 'Bitte rufen Sie sofort diese Nummer an, um Ihr Konto zu retten';
+    expect(leseParameter({ jahr: lang }, JAHRE).hinweise).toEqual([`Das Jahr „${lang.slice(0, 39)}…“ ist nicht verfügbar. Gezeigt wird 2026.`]);
+    expect(leseParameter({ einzelplan: lang }, JAHRE).hinweise).toEqual([`Die Auswahl „${lang.slice(0, 39)}…“ ist ungültig und wurde zurückgesetzt.`]);
+  });
+
   it('verwirft ungültige oder unpassende Schlüssel und alles darunter', () => {
     const a = leseParameter({ einzelplan: '9x', kapitel: '1401' }, JAHRE);
     expect(a.param.pfad).toEqual({});
