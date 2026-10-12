@@ -10,7 +10,10 @@ import { einheitFuer } from '@/lib/ibcs/format';
 import { wann } from '@/lib/ibcs/titel';
 import { text, zahl } from '@/lib/werte';
 
-/** Eine Frage der Startseite mit ihrer fest definierten Antwortansicht (Spec 6.1). */
+/**
+ * Eine Frage der Startseite mit ihrer fest definierten Antwortansicht (Spec 6.1).
+ * Jede Karte skaliert für sich und trägt deshalb den Skalierungsmarker (Spec 5.3).
+ */
 export async function FrageKarte({ f, jahre, version }: { f: FrageDef; jahre: Standardjahre; version: number }) {
   const a = f.abfrage(jahre);
   if (!a) return null;
@@ -28,7 +31,7 @@ export async function FrageKarte({ f, jahre, version }: { f: FrageDef; jahre: St
     const von = a.filter?.jahr_von;
     const bis = a.filter?.jahr_bis;
     const zeitraum = von !== undefined && bis !== undefined ? `${von} bis ${bis} ${f.szenarien.join(', ')}` : wann(f.jahr(jahre), f.szenarien);
-    inhalt = <ZeitreiheSaeulen id={id} titel={{ wer: f.wer, was: e.kurz, wann: zeitraum }} punkte={punkte} einheit={e} hinweise={r.hinweise} />;
+    inhalt = <ZeitreiheSaeulen id={id} titel={{ wer: f.wer, was: e.kurz, wann: zeitraum }} punkte={punkte} einheit={e} hinweise={r.hinweise} eigenerMasstab />;
   } else if (f.darstellung === 'abweichung') {
     const zeilen = r.zeilen
       .map((z) => {
@@ -39,14 +42,14 @@ export async function FrageKarte({ f, jahre, version }: { f: FrageDef; jahre: St
       .sort((x, y) => Math.abs(y.wert ?? 0) - Math.abs(x.wert ?? 0))
       .slice(0, 5);
     const e = einheitFuer(zeilen.map((z) => z.wert));
-    inhalt = <Abweichungsbalken id={id} titel={{ wer: f.wer, was: e.kurz, wann: wann(f.jahr(jahre), f.szenarien) }} zeilen={zeilen} vergleich="plan" einheit={e} hinweise={r.hinweise} />;
+    inhalt = <Abweichungsbalken id={id} titel={{ wer: f.wer, was: e.kurz, wann: wann(f.jahr(jahre), f.szenarien) }} zeilen={zeilen} vergleich="plan" einheit={e} hinweise={r.hinweise} eigenerMasstab />;
   } else {
     const zeilen = r.zeilen.map((z) => {
       const s = text(z, dim) ?? '';
       return { schluessel: s, bezeichnung: bezeichnung(dim, s, text(z, TEXTSPALTE[dim] ?? '')), soll: zahl(z, 'soll') };
     });
     const e = einheitFuer(zeilen.map((z) => z.soll));
-    inhalt = <Strukturbalken id={id} titel={{ wer: f.wer, was: e.kurz, wann: wann(f.jahr(jahre), f.szenarien) }} zeilen={zeilen} einheit={e} hinweise={r.hinweise} />;
+    inhalt = <Strukturbalken id={id} titel={{ wer: f.wer, was: e.kurz, wann: wann(f.jahr(jahre), f.szenarien) }} zeilen={zeilen} einheit={e} hinweise={r.hinweise} eigenerMasstab />;
   }
   return (
     <article className="rounded border border-[var(--hb-linie)] p-4">

@@ -16,7 +16,7 @@ export type StrukturZeile = {
 };
 
 /** Sortierte horizontale Balken (IBCS Strukturanalyse), zugleich als zugängliche Tabelle. */
-export function Strukturbalken({ id, titel, zeilen, masstab, einheit, deltaBeschriftung, hinweise = [], nominal = false, weitere }: {
+export function Strukturbalken({ id, titel, zeilen, masstab, einheit, deltaBeschriftung, hinweise = [], nominal = false, weitere, eigenerMasstab = false }: {
   id: string;
   titel: Titel;
   zeilen: readonly StrukturZeile[];
@@ -26,6 +26,7 @@ export function Strukturbalken({ id, titel, zeilen, masstab, einheit, deltaBesch
   hinweise?: readonly string[];
   nominal?: boolean;
   weitere?: { anzahl: number; href: string };
+  eigenerMasstab?: boolean;
 }) {
   const werte = zeilen.flatMap((z) => [z.soll, z.ist ?? null]);
   const m = masstab ?? berechneMasstab(werte);
@@ -35,7 +36,7 @@ export function Strukturbalken({ id, titel, zeilen, masstab, einheit, deltaBesch
   const spalten = 3 + (zeigeIst ? 1 : 0) + (zeigeDelta ? 1 : 0);
   return (
     <figure aria-labelledby={`${id}-titel`} className="my-4">
-      <figcaption><Titelblock id={`${id}-titel`} {...titel} /></figcaption>
+      <figcaption><Titelblock id={`${id}-titel`} {...titel} eigenerMasstab={eigenerMasstab} /></figcaption>
       <table className="w-full border-collapse text-sm tabular-nums">
         <thead className="sr-only">
           <tr>

@@ -1,4 +1,4 @@
-import { abweichungsfarbe, type Vergleich } from '@/lib/ibcs/farbe';
+import { abweichungsfarbe, hatWirkungsfarbe, type Vergleich } from '@/lib/ibcs/farbe';
 import { prozent } from '@/lib/ibcs/format';
 import { kappe, masstab as berechneMasstab } from '@/lib/ibcs/skala';
 import type { Titel } from '@/lib/ibcs/titel';
@@ -30,7 +30,7 @@ export function Nadeln({ id, titel, zeilen, vergleich, hinweise = [] }: {
           ))}
         </tbody>
       </table>
-      <Fussnoten hinweise={alleHinweise} />
+      <Fussnoten hinweise={alleHinweise} farbregel={hatWirkungsfarbe(zeilen, vergleich)} />
     </figure>
   );
 }

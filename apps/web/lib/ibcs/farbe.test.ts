@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FARBKLASSE, abweichungsfarbe, wirkungAus } from './farbe';
+import { FARBKLASSE, abweichungsfarbe, hatWirkungsfarbe, wirkungAus } from './farbe';
 
 describe('Farbregel E21', () => {
   it('färbt nach Wirkungsrichtung', () => {
@@ -26,5 +26,12 @@ describe('Farbregel E21', () => {
     expect(wirkungAus('irgendwas')).toBe('neutral');
     expect(wirkungAus(null)).toBe('neutral');
     expect(FARBKLASSE).toEqual({ positiv: 'ibcs-pos', negativ: 'ibcs-neg', neutral: 'ibcs-neutral' });
+  });
+
+  it('erkennt, ob eine Darstellung überhaupt eine Wirkungsfarbe zeigt', () => {
+    expect(hatWirkungsfarbe([{ wert: 3, wirkung: 'neutral' }, { wert: -1, wirkung: 'anstieg_positiv' }], 'plan')).toBe(true);
+    expect(hatWirkungsfarbe([{ wert: 3, wirkung: 'neutral' }, { wert: 0, wirkung: 'anstieg_positiv' }, { wert: null, wirkung: 'anstieg_negativ' }], 'plan')).toBe(false);
+    expect(hatWirkungsfarbe([{ wert: 3, wirkung: 'anstieg_negativ' }], 'vorjahr')).toBe(false);
+    expect(hatWirkungsfarbe([], 'plan')).toBe(false);
   });
 });

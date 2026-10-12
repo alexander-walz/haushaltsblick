@@ -1,4 +1,4 @@
-import { abweichungsfarbe, FARBKLASSE, type Wirkung } from '@/lib/ibcs/farbe';
+import { abweichungsfarbe, FARBKLASSE, hatWirkungsfarbe, type Wirkung } from '@/lib/ibcs/farbe';
 import { betrag, einheitFuer, type Einheit } from '@/lib/ibcs/format';
 import { NOTATION } from '@/lib/ibcs/notation';
 import { masstab, position } from '@/lib/ibcs/skala';
@@ -26,15 +26,15 @@ const RAND = 24;
 const runde = (n: number) => Math.round(n * 100) / 100;
 
 /** Zeitreihe als Säulen (Zeit horizontal): Soll als Kontur, Ist gefüllt, Entwurf gekennzeichnet, darunter ΔPL je Jahr. */
-export function ZeitreiheSaeulen({ id, titel, punkte, wirkung = 'neutral', hinweise = [], einheit }: {
-  id: string; titel: Titel; punkte: readonly Zeitpunkt[]; wirkung?: Wirkung; hinweise?: readonly string[]; einheit?: Einheit;
+export function ZeitreiheSaeulen({ id, titel, punkte, wirkung = 'neutral', hinweise = [], einheit, eigenerMasstab = false }: {
+  id: string; titel: Titel; punkte: readonly Zeitpunkt[]; wirkung?: Wirkung; hinweise?: readonly string[]; einheit?: Einheit; eigenerMasstab?: boolean;
 }) {
   const werte = punkte.flatMap((p) => [p.soll, p.ist, p.haushaltsplan ?? null]);
   const m = masstab(werte);
   const e = einheit ?? einheitFuer(werte);
   const abw = punkte.map((p) => p.abweichung ?? null);
   const zeigePlan = punkte.some((p) => p.haushaltsplan !== undefined && p.haushaltsplan !== null);
-  const zeigeAbw =abw.some((w) => w !== null);
+  const zeigeAbw = abw.some((w) => w !== null);
   const ma = masstab(abw);
   const breite = Math.max(punkte.length, 1) * SPALTE;
   const hoehe = OBEN + HOEHE + UNTEN + (zeigeAbw ? ABW + ABWTEXT : 0);
@@ -45,7 +45,7 @@ export function ZeitreiheSaeulen({ id, titel, punkte, wirkung = 'neutral', hinwe
   const ya0 = ya(0);
   return (
     <figure className="my-4">
-      <figcaption><Titelblock id={`${id}-titel`} {...titel} /></figcaption>
+      <figcaption><Titelblock id={`${id}-titel`} {...titel} eigenerMasstab={eigenerMasstab} /></figcaption>
       <svg viewBox={`${zeigeAbw ? -RAND : 0} 0 ${breite + (zeigeAbw ? RAND : 0)} ${hoehe}`} className="h-auto w-full" role="img" aria-labelledby={`${id}-titel`}>
         {punkte.map((p, i) => {
           const x = i * SPALTE + 8;
@@ -109,7 +109,7 @@ export function ZeitreiheSaeulen({ id, titel, punkte, wirkung = 'neutral', hinwe
           ))}
         </tbody>
       </table>
-      <Fussnoten hinweise={hinweise} nominal />
+      <Fussnoten hinweise={hinweise} nominal farbregel={hatWirkungsfarbe(abw.map((wert) => ({ wert, wirkung })), 'plan')} />
     </figure>
   );
 }

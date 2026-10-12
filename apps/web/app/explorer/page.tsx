@@ -81,12 +81,14 @@ export default async function Explorer({ searchParams }: { searchParams: Promise
         titel={{
           wer: `${ort}, ${kontoText} nach ${EBENENNAME[e.gruppierung]}`,
           was: einheit.kurz,
-          wann: wann(param.jahr, mitIst ? ['Soll', 'Ist', 'ΔPL'] : [sollWort, `Δ ${sollWort} Vorjahr`, 'Anteil']),
+          wann: wann(param.jahr, mitIst ? ['Soll', 'Ist', 'ΔPL'] : [sollWort, 'Δ Soll Vorjahr', 'Anteil']),
         }}
         zeilen={zeilen}
         summe={summeZeile}
         einheit={einheit}
         hinweise={daten.hinweise}
+        sollBeschriftung={sollWort}
+        eigenerMasstab={e.tiefe > 0}
       />
     </>
   );

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { EINHEITEN, betrag, betragMitEinheit, einheitFuer, euro, ganzzahl, prozent } from './format';
+import { EINHEITEN, betrag, betragMitEinheit, dezimal, einheitFuer, euro, ganzzahl, prozent } from './format';
 
 describe('Formatierung', () => {
   it('wählt die Einheit nach dem größten Betrag', () => {
@@ -17,8 +17,17 @@ describe('Formatierung', () => {
     expect(betrag(1_234_567_000_000, EINHEITEN.mrd)).toBe('1.234,6');
   });
 
-  it('zeigt gerundete Null ohne Vorzeichen und fehlende Werte als n. v.', () => {
-    expect(betrag(-40_000_000, EINHEITEN.mrd, { vorzeichen: true })).toBe('0,0');
+  it('zeigt Abweichungen, die auf null runden, mit dem Vorzeichen des ungerundeten Werts (E21)', () => {
+    expect(betrag(-40_000_000, EINHEITEN.mrd, { vorzeichen: true })).toBe('−0,0');
+    expect(betrag(40_000_000, EINHEITEN.mrd, { vorzeichen: true })).toBe('+0,0');
+    expect(betrag(0, EINHEITEN.mrd, { vorzeichen: true })).toBe('0,0');
+    expect(betrag(-40_000_000, EINHEITEN.mrd)).toBe('0,0');
+    expect(prozent(0.0004, { vorzeichen: true })).toBe('+0,0 %');
+    expect(prozent(-0.0004, { vorzeichen: true })).toBe('−0,0 %');
+    expect(prozent(0, { vorzeichen: true })).toBe('0,0 %');
+  });
+
+  it('zeigt fehlende Werte als n. v.', () => {
     expect(betrag(null, EINHEITEN.mrd)).toBe('n. v.');
     expect(betrag(undefined, EINHEITEN.mrd)).toBe('n. v.');
   });
@@ -35,11 +44,16 @@ describe('Formatierung', () => {
     expect(euro(null)).toBe('n. v.');
     expect(prozent(0.376217)).toBe('37,6 %');
     expect(prozent(-0.045, { vorzeichen: true })).toBe('−4,5 %');
-    expect(prozent(0.0004, { vorzeichen: true })).toBe('0,0 %');
     expect(prozent(null)).toBe('n. v.');
     expect(ganzzahl(100726)).toBe('100.726');
     expect(ganzzahl(-5)).toBe('−5');
     expect(ganzzahl(Number.NaN)).toBe('n. v.');
     expect(ganzzahl(Number.POSITIVE_INFINITY)).toBe('n. v.');
+  });
+
+  it('formatiert Kennwerte mit einer Nachkommastelle', () => {
+    expect(dezimal(87.18)).toBe('87,2');
+    expect(dezimal(100)).toBe('100,0');
+    expect(dezimal(Number.NaN)).toBe('n. v.');
   });
 });

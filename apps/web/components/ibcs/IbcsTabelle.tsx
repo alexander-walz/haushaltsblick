@@ -1,4 +1,4 @@
-import { abweichungsfarbe, type Wirkung } from '@/lib/ibcs/farbe';
+import { abweichungsfarbe, hatWirkungsfarbe, type Wirkung } from '@/lib/ibcs/farbe';
 import { betrag, einheitFuer, prozent, type Einheit } from '@/lib/ibcs/format';
 import { masstab } from '@/lib/ibcs/skala';
 import type { Titel } from '@/lib/ibcs/titel';
@@ -24,15 +24,19 @@ const NEBEN = 'hidden sm:table-cell';
 const ZAHL = 'px-2 py-1 text-right whitespace-nowrap';
 
 /** IBCS-Tabelle mit eingebetteten Szenario- und Abweichungsbalken (Spec 5.5). */
-export function IbcsTabelle({ id, titel, modus, zeilen, summe, einheit, hinweise = [], nominal = false }: {
+export function IbcsTabelle({ id, titel, modus, zeilen, summe, einheit, hinweise = [], nominal = false, sollBeschriftung = 'Soll', eigenerMasstab = false }: {
   id: string; titel: Titel; modus: 'plan_ist' | 'soll'; zeilen: readonly TabellenZeile[]; summe?: TabellenZeile;
   einheit?: Einheit; hinweise?: readonly string[]; nominal?: boolean;
+  /** Kopf der Soll-Spalte, im Entwurfsjahr „Entwurf“ (Spec 5.1). */
+  sollBeschriftung?: string;
+  eigenerMasstab?: boolean;
 }) {
   const e = einheit ?? einheitFuer(zeilen.flatMap((z) => [z.soll, z.ist ?? null]));
   const mS = masstab(zeilen.flatMap((z) => [z.soll, z.ist ?? null]));
   const mA = masstab(zeilen.map((z) => z.abweichung ?? null));
   const planIst = modus === 'plan_ist';
   const spalten = planIst ? 7 : 5;
+  const farbregel = planIst && hatWirkungsfarbe(zeilen.map((z) => ({ wert: z.abweichung, wirkung: z.wirkung })), 'plan');
 
   const zellen = (z: TabellenZeile, summenzeile: boolean) => (
     <>
@@ -63,15 +67,15 @@ export function IbcsTabelle({ id, titel, modus, zeilen, summe, einheit, hinweise
 
   return (
     <figure aria-labelledby={`${id}-titel`} className="my-4">
-      <figcaption><Titelblock id={`${id}-titel`} {...titel} /></figcaption>
+      <figcaption><Titelblock id={`${id}-titel`} {...titel} eigenerMasstab={eigenerMasstab} /></figcaption>
       <div className="overflow-x-auto" tabIndex={0} role="region" aria-labelledby={`${id}-titel`}>
         <table className="w-full border-collapse text-sm tabular-nums">
           <thead>
             <tr className="border-b-2 border-[var(--hb-ink)] text-xs">
               <th scope="col" className="sticky left-0 bg-[var(--hb-bg)] py-1 pr-2 text-left font-semibold">Bezeichnung</th>
-              <th scope="col" className={ZAHL}>Soll</th>
+              <th scope="col" className={ZAHL}>{sollBeschriftung}</th>
               {planIst && <th scope="col" className={ZAHL}>Ist</th>}
-              <th scope="col" className="px-2 text-left font-semibold">{planIst ? 'Ist / Soll' : 'Soll (Balken)'}</th>
+              <th scope="col" className="px-2 text-left font-semibold">{planIst ? `Ist / ${sollBeschriftung}` : `${sollBeschriftung} (Balken)`}</th>
               {planIst ? (
                 <>
                   <th scope="col" className={`${NEBEN} px-2 text-left font-semibold`}>ΔPL (Balken)</th>
@@ -93,7 +97,7 @@ export function IbcsTabelle({ id, titel, modus, zeilen, summe, einheit, hinweise
           {summe && <tfoot><tr className="border-t-2 border-[var(--hb-ink)] font-semibold">{zellen(summe, true)}</tr></tfoot>}
         </table>
       </div>
-      <Fussnoten hinweise={hinweise} nominal={nominal} />
+      <Fussnoten hinweise={hinweise} nominal={nominal} farbregel={farbregel} />
     </figure>
   );
 }
