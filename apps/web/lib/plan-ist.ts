@@ -3,6 +3,7 @@ import type { Datenstand, Zeile } from './daten/schemas';
 import { einzeln, type SuchParameter } from './seite';
 
 export type PlanIstEbene = 'einzelplan' | 'kapitel' | 'titel';
+export const ANZAHL_ABWEICHUNGEN = 12;
 export const EBENE_DIM: Record<PlanIstEbene, string> = { einzelplan: 'einzelplan_nr', kapitel: 'kapitel_nr', titel: 'titel_key' };
 
 /** Auswahl der größten Abweichungen nach Betrag aus den Abfragen „absteigend“ und „aufsteigend“ (reine Darstellung). */
@@ -25,11 +26,13 @@ export function lesePlanIstParameter(sp: SuchParameter, stand: Datenstand, jahre
   const hinweise: string[] = [];
   const konto = einzeln(sp, 'konto') === 'einnahmen' ? 'einnahmen' as const : 'ausgaben' as const;
   const standard = jahre.letztesMitIst ?? jahre.laufend;
+  if (jahre.letztesMitIst === null) hinweise.push('Noch kein abgeschlossenes Jahr mit Ist verfügbar.');
   let jahr = standard;
   const jahrText = einzeln(sp, 'jahr');
   if (jahrText !== undefined) {
     const j = Number(jahrText);
-    if (Number.isInteger(j) && istVerfuegbar(stand, j, konto)) jahr = j;
+    if (!Number.isInteger(j) || !jahre.alle.includes(j)) hinweise.push(`Das Jahr „${jahrText}“ ist nicht verfügbar. Gezeigt wird ${standard}.`);
+    else if (istVerfuegbar(stand, j, konto)) jahr = j;
     else hinweise.push(`Für ${jahrText} liegt noch kein Ist vor. Gezeigt wird ${standard}, das letzte abgeschlossene Jahr.`);
   }
   const e = einzeln(sp, 'ebene');

@@ -11,7 +11,7 @@ import { bezeichnung, TEXTSPALTE, trefferZiel } from '@/lib/explorer';
 import { wirkungAus } from '@/lib/ibcs/farbe';
 import { betragMitEinheit, einheitFuer } from '@/lib/ibcs/format';
 import { wann } from '@/lib/ibcs/titel';
-import { EBENE_DIM, groessteAbweichungen, lesePlanIstParameter, type PlanIstEbene } from '@/lib/plan-ist';
+import { ANZAHL_ABWEICHUNGEN, EBENE_DIM, groessteAbweichungen, lesePlanIstParameter, type PlanIstEbene } from '@/lib/plan-ist';
 import type { SuchParameter } from '@/lib/seite';
 import { text, zahl } from '@/lib/werte';
 import { heute } from '@/lib/zeit';
@@ -33,14 +33,14 @@ export default async function PlanUndIst({ searchParams }: { searchParams: Promi
   const v = stand.version;
   const dim = EBENE_DIM[p.ebene];
   const filter = { konto: p.konto, jahr: p.jahr };
-  const basis = { kennzahlen: ['soll', 'ist', 'abweichung', 'abweichung_rel'], gruppierung: [dim], filter, sortierung: p.sortierung, limit: 10 };
+  const basis = { kennzahlen: ['soll', 'ist', 'abweichung', 'abweichung_rel'], gruppierung: [dim], filter, sortierung: p.sortierung, limit: ANZAHL_ABWEICHUNGEN };
   const [gesamt, oben, unten] = await Promise.all([
     frage({ kennzahlen: ['soll', 'ist', 'abweichung'], filter }, v),
     frage({ ...basis, absteigend: true }, v),
     frage({ ...basis, absteigend: false }, v),
   ]);
   const g = gesamt.zeilen[0];
-  const auswahl = groessteAbweichungen([...oben.zeilen, ...unten.zeilen], dim, p.sortierung, 12);
+  const auswahl = groessteAbweichungen([...oben.zeilen, ...unten.zeilen], dim, p.sortierung, ANZAHL_ABWEICHUNGEN);
   const zeilen = auswahl.map((z) => {
     const s = text(z, dim) ?? '';
     return {

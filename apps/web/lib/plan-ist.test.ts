@@ -10,6 +10,13 @@ describe('groessteAbweichungen', () => {
     expect(r.map((z) => z.einzelplan_nr)).toEqual(['60', '14', '06']);
   });
 
+  it('liefert bei einseitiger Verteilung genau die größten', () => {
+    const unten = Array.from({ length: 12 }, (_, i) => ({ k: `n${i}`, abweichung: -(i + 1) }));
+    const oben = [{ k: 'p1', abweichung: 0.3 }, { k: 'p2', abweichung: 0.2 }, { k: 'p3', abweichung: 0.1 }];
+    const r = groessteAbweichungen([...oben, ...unten], 'k', 'abweichung', 12);
+    expect(r.map((z) => z.k).sort()).toEqual(unten.map((z) => z.k).sort());
+  });
+
   it('lässt Zeilen ohne Wert weg', () => {
     const r = groessteAbweichungen([{ k: 'a', abweichung: null }, { k: 'b', abweichung: 1 }], 'k', 'abweichung', 5);
     expect(r.map((z) => z.k)).toEqual(['b']);
@@ -38,5 +45,19 @@ describe('lesePlanIstParameter', () => {
   it('liest Ebene, Konto und Sortierung', () => {
     expect(lesePlanIstParameter({ jahr: '2024', konto: 'einnahmen', ebene: 'titel', sortierung: 'relativ' }, stand, jahre))
       .toMatchObject({ jahr: 2024, konto: 'einnahmen', ebene: 'titel', sortierung: 'abweichung_rel' });
+  });
+
+  it('weist ein unbekanntes Jahr mit eigenem Hinweis ab', () => {
+    for (const wert of ['1999', 'abc', '2025.5']) {
+      const r = lesePlanIstParameter({ jahr: wert }, stand, jahre);
+      expect(r.jahr).toBe(2025);
+      expect(r.hinweise).toEqual([`Das Jahr „${wert}“ ist nicht verfügbar. Gezeigt wird 2025.`]);
+    }
+  });
+
+  it('weist darauf hin, wenn es noch kein Jahr mit Ist gibt', () => {
+    const r = lesePlanIstParameter({}, stand, { ...jahre, letztesMitIst: null });
+    expect(r.jahr).toBe(2026);
+    expect(r.hinweise).toEqual(['Noch kein abgeschlossenes Jahr mit Ist verfügbar.']);
   });
 });
